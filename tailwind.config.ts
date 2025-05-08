@@ -110,6 +110,106 @@ export default {
         'fade-in': 'fade-in 0.3s ease-in-out',
         'fade-out': 'fade-out 0.3s ease-in-out',
         'slide-in': 'slide-in 0.4s ease-out'
+      },
+      typography: {
+        DEFAULT: {
+          css: {
+            maxWidth: '100%',
+            color: 'var(--tw-prose-body)',
+            fontSize: '0.875rem',
+            lineHeight: '1.5',
+            p: {
+              marginTop: '0.75em',
+              marginBottom: '0.75em'
+            },
+            '[class~="lead"]': {
+              fontSize: '1em'
+            },
+            a: {
+              color: 'var(--tw-prose-links)'
+            },
+            strong: {
+              fontWeight: '600'
+            },
+            ul: {
+              marginTop: '0.75em',
+              marginBottom: '0.75em',
+              paddingLeft: '1.25em'
+            },
+            ol: {
+              marginTop: '0.75em',
+              marginBottom: '0.75em',
+              paddingLeft: '1.25em'
+            },
+            li: {
+              marginTop: '0.25em',
+              marginBottom: '0.25em'
+            },
+            h1: {
+              fontSize: '1.5em',
+              marginTop: '1em',
+              marginBottom: '0.5em',
+              lineHeight: '1.3'
+            },
+            h2: {
+              fontSize: '1.25em',
+              marginTop: '1em',
+              marginBottom: '0.5em',
+              lineHeight: '1.3'
+            },
+            h3: {
+              fontSize: '1.125em',
+              marginTop: '1em',
+              marginBottom: '0.5em',
+              lineHeight: '1.3'
+            },
+            h4: {
+              fontSize: '1em',
+              marginTop: '1em',
+              marginBottom: '0.5em',
+              lineHeight: '1.3'
+            },
+            blockquote: {
+              fontWeight: '400',
+              fontStyle: 'italic',
+              paddingLeft: '1em',
+              borderLeftWidth: '0.25em'
+            },
+            code: {
+              color: 'var(--tw-prose-code)',
+              fontWeight: '500',
+              fontSize: '0.8em'
+            },
+            pre: {
+              fontSize: '0.8em',
+              lineHeight: '1.5',
+              marginTop: '0.75em',
+              marginBottom: '0.75em',
+              borderRadius: '0.375rem',
+              paddingTop: '0.75em',
+              paddingRight: '1em',
+              paddingBottom: '0.75em',
+              paddingLeft: '1em'
+            }
+          }
+        },
+        'prose-xs': { // Mobil için ekstra küçük boyut
+          css: {
+            fontSize: '0.75rem',
+            h1: {
+              fontSize: '1.25em'
+            },
+            h2: {
+              fontSize: '1.15em'
+            },
+            h3: {
+              fontSize: '1.05em'
+            },
+            h4: {
+              fontSize: '1em'
+            }
+          }
+        }
       }
     }
   },

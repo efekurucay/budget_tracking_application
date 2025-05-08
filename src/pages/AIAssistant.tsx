@@ -32,6 +32,8 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useNavigate } from "react-router-dom";
 
 // Message schema 
 const messageSchema = z.object({
@@ -84,14 +86,16 @@ const convertToVisualData = (visualData: any): VisualData[] | undefined => {
 const AIAssistant = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isPro, setIsPro] = useState<boolean | null>(null);
+  const [isPro, setIsPro] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
   const [conversations, setConversations] = useState<ConversationHistory[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [showConversationList, setShowConversationList] = useState(false);
+  const isMobile = useIsMobile();
   
   const [suggestedPrompts] = useState([
     t("aiAssistant.suggestions.items.0", "How can I improve my saving habits?"),
@@ -130,6 +134,13 @@ const AIAssistant = () => {
     },
     enabled: !!user?.id,
   });
+
+  // Set isPro state based on profile data
+  useEffect(() => {
+    if (profileData) {
+      setIsPro(!!profileData.is_pro);
+    }
+  }, [profileData]);
 
   // Load conversation history
   useEffect(() => {
@@ -201,16 +212,10 @@ const AIAssistant = () => {
 
   // Auto scroll to bottom when messages change
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  // Check if user is Pro
-  useEffect(() => {
-    if (profileData) {
-      setIsPro(profileData.is_pro);
-      setIsLoading(false);
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [profileData]);
+  }, [messages]);
 
   const addWelcomeMessage = async () => {
     if (!user?.id) return;
@@ -361,7 +366,7 @@ const AIAssistant = () => {
 
   const handleSendMessage = async (data: z.infer<typeof messageSchema>) => {
     // Check if user is Pro
-    if (isPro === false) {
+    if (!isPro) {
       toast.error(t("aiAssistant.proFeatureMessage", "AI Assistant is a Pro feature. Please upgrade to access this feature."), {
         duration: 5000,
       });
@@ -654,13 +659,13 @@ const AIAssistant = () => {
     switch (visual.type) {
       case "progress":
         return (
-          <div className="my-2 space-y-1" key={`progress-${visual.data.name}`}>
-            <div className="flex justify-between text-sm">
+          <div className="my-1 sm:my-2 space-y-1" key={`progress-${visual.data.name}`}>
+            <div className="flex justify-between text-xs sm:text-sm">
               <span>{visual.data.name}</span>
               <span>${visual.data.current} of ${visual.data.target}</span>
             </div>
-            <Progress value={visual.data.percentage} className="h-2" />
-            <p className="text-xs text-gray-500">{visual.data.percentage}% complete</p>
+            <Progress value={visual.data.percentage} className="h-1.5 sm:h-2" />
+            <p className="text-[10px] sm:text-xs text-gray-500">{visual.data.percentage}% complete</p>
           </div>
         );
       
@@ -670,23 +675,23 @@ const AIAssistant = () => {
             href={visual.data.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center text-primary hover:underline mt-2"
+            className="flex items-center text-primary hover:underline mt-1 sm:mt-2 text-xs sm:text-sm"
             key={`link-${visual.data.url}`}
           >
             <span>{visual.data.text}</span>
-            <ExternalLink className="ml-1 h-3 w-3" />
+            <ExternalLink className="ml-1 h-2.5 w-2.5 sm:h-3 sm:w-3" />
           </a>
         );
       
       case "suggestion":
         return (
-          <div className="grid grid-cols-1 gap-2 mt-2" key="suggestions">
+          <div className="grid grid-cols-1 gap-1 sm:gap-2 mt-1 sm:mt-2" key="suggestions">
             {visual.data.map((suggestion: string, i: number) => (
               <Button
                 key={`suggestion-${i}`}
                 variant="outline"
                 size="sm"
-                className="justify-start text-left h-auto py-2"
+                className="justify-start text-left h-auto py-1 sm:py-2 text-xs sm:text-sm"
                 onClick={() => handleUseSuggestion(suggestion)}
               >
                 {suggestion}
@@ -713,7 +718,7 @@ const AIAssistant = () => {
     );
   }
 
-  if (isPro === false) {
+  if (!isPro) {
     return (
       <DashboardLayout>
         <div className="container mx-auto max-w-4xl py-6">
@@ -763,187 +768,236 @@ const AIAssistant = () => {
 
   return (
     <DashboardLayout>
-      <div className="container mx-auto max-w-5xl">
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">{t("aiAssistant.pageTitle", "AI Financial Assistant")}</h1>
-              <p className="text-gray-600">{t("aiAssistant.subtitle", "Get personalized financial advice and guidance")}</p>
-            </div>
-            <div className="flex space-x-2">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowConversationList(!showConversationList)}
-                className="flex items-center"
-              >
-                {t("aiAssistant.history", "History")}
-                <ChevronDown className="ml-1 h-4 w-4" />
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={startNewConversation}
-                disabled={isProcessing}
-              >
-                <RefreshCcw className="mr-2 h-4 w-4" /> {t("aiAssistant.newConversation", "New Conversation")}
-              </Button>
-            </div>
+      <div className="flex flex-col h-full max-w-[1200px] mx-auto">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-2xl font-bold">{t("aiAssistant.pageTitle", "AI Financial Assistant")}</h1>
+            <p className="text-sm text-muted-foreground">
+              {t("aiAssistant.description", "Ask me anything about your finances")}
+            </p>
+          </div>
+          
+          <div className="flex space-x-2">
+            <Button
+              variant="outline"
+              size={isMobile ? "sm" : "default"}
+              onClick={() => setShowConversationList(!showConversationList)}
+              className="flex items-center"
+            >
+              <ChevronDown size={16} className="mr-1" />
+              {!isMobile && t("aiAssistant.conversations", "Conversations")}
+            </Button>
+            
+            <Button
+              variant="outline" 
+              size={isMobile ? "sm" : "default"}
+              onClick={startNewConversation}
+              className="flex items-center"
+            >
+              <RefreshCcw size={16} className="mr-1" />
+              {!isMobile && t("aiAssistant.newChat", "New Chat")}
+            </Button>
           </div>
         </div>
         
-        {showConversationList && conversations.length > 1 && (
+        {showConversationList && (
           <Card className="mb-4">
-            <CardHeader className="py-3">
-              <CardTitle className="text-lg">{t("aiAssistant.conversationHistory", "Conversation History")}</CardTitle>
+            <CardHeader className="p-3">
+              <CardTitle className="text-sm">{t("aiAssistant.conversationHistory", "Conversation History")}</CardTitle>
             </CardHeader>
-            <CardContent className="py-0">
-              <div className="space-y-1 max-h-64 overflow-y-auto">
-                {conversations.map(conv => (
-                  <Button
-                    key={conv.id}
-                    variant={conv.id === currentConversationId ? "secondary" : "ghost"}
-                    className="w-full justify-start text-left"
-                    onClick={() => loadConversation(conv.id)}
-                  >
-                    <span className="truncate">{conv.title}</span>
-                    <span className="ml-auto text-xs text-gray-500">
-                      {new Date(conv.lastMessageDate).toLocaleDateString()}
-                    </span>
-                  </Button>
-                ))}
-              </div>
+            <CardContent className="p-0 max-h-[200px] overflow-y-auto">
+              {conversations.length === 0 ? (
+                <div className="px-4 py-3 text-sm text-muted-foreground">
+                  {t("aiAssistant.noConversations", "No conversations yet")}
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {conversations.map((convo) => (
+                    <div 
+                      key={convo.id}
+                      className={`px-4 py-3 text-sm cursor-pointer hover:bg-gray-50 ${
+                        currentConversationId === convo.id ? "bg-gray-100" : ""
+                      }`}
+                      onClick={() => {
+                        loadConversation(convo.id);
+                        setShowConversationList(false);
+                      }}
+                    >
+                      <div className="font-medium truncate">{convo.title}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatTime(convo.lastMessageDate)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
         
-        <Card className="mb-4">
-          <CardContent className="p-6">
-            <div className="space-y-4 max-h-[600px] overflow-y-auto p-1">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${
-                    message.role === "user" ? "justify-end" : "justify-start"
-                  }`}
-                >
-                  <div
-                    className={`flex gap-3 max-w-[80%] ${
-                      message.role === "user" ? "flex-row-reverse" : ""
-                    }`}
-                  >
-                    <Avatar className={message.role === "assistant" ? "bg-primary text-primary-foreground" : "bg-muted"}>
-                      {message.role === "assistant" ? (
-                        <Bot className="h-5 w-5" />
-                      ) : (
-                        <AvatarFallback>
-                          {user?.email?.charAt(0).toUpperCase() || "U"}
-                        </AvatarFallback>
-                      )}
-                    </Avatar>
-                    
-                    <div className={message.role === "user" ? "text-right" : ""}>
+        <Card className="flex-1 flex flex-col border-none shadow-none bg-transparent">
+          <CardContent className="flex-1 p-0 overflow-hidden flex flex-col">
+            <div className="h-full overflow-y-auto p-4">
+              {isLoading ? (
+                <div className="flex flex-col items-center justify-center h-full space-y-4">
+                  <Loader2 className="h-8 w-8 animate-spin text-g15-primary" />
+                  <p className="text-sm text-muted-foreground">{t("aiAssistant.loading", "Loading conversations...")}</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {messages.map((message, index) => (
+                    <div
+                      key={message.id || index}
+                      className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                    >
                       <div
-                        className={`rounded-lg p-4 ${
+                        className={`rounded-lg p-4 max-w-[85%] md:max-w-[70%] flex ${
                           message.role === "user"
-                            ? "bg-primary text-primary-foreground"
-                            : message.isLoading
-                            ? "bg-muted/80"
-                            : "bg-muted"
+                            ? "bg-g15-primary text-white"
+                            : "bg-gray-100"
                         }`}
                       >
-                        {message.isLoading ? (
-                          <div className="flex items-center">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span className="ml-2">{t("aiAssistant.thinking", "Thinking...")}</span>
-                          </div>
-                        ) : (
-                          <>
-                            {message.role === "user" ? (
-                              <p className="whitespace-pre-wrap">{message.content}</p>
-                            ) : (
-                              <div className="prose prose-sm dark:prose-invert">
-                                <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+                        {message.role === "assistant" && (
+                          <Avatar className="h-8 w-8 mr-3 mt-1 flex-shrink-0">
+                            <AvatarImage src="/bot-avatar.png" alt="AI" />
+                            <AvatarFallback className="bg-g15-accent text-g15-accent-foreground">
+                              <Bot size={16} />
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
+                        
+                        <div className="space-y-2">
+                          {message.isLoading ? (
+                            <div className="flex items-center space-x-2">
+                              <div className="animate-pulse bg-current opacity-30 h-3 w-3 rounded-full"></div>
+                              <div className="animate-pulse bg-current opacity-50 h-3 w-3 rounded-full"></div>
+                              <div className="animate-pulse bg-current opacity-70 h-3 w-3 rounded-full"></div>
+                            </div>
+                          ) : (
+                            <>
+                              <div className={message.role === "assistant" ? "prose" : ""}>
+                                <ReactMarkdown 
+                                  rehypePlugins={[rehypeRaw]}
+                                  components={{
+                                    a: ({ node, ...props }) => (
+                                      <a {...props} className="text-blue-500 hover:underline" target="_blank" rel="noopener noreferrer" />
+                                    ),
+                                    code: ({ node, ...props }) => (
+                                      <code {...props} className="bg-gray-700 text-gray-200 px-1 py-0.5 rounded text-sm" />
+                                    ),
+                                    pre: ({ node, ...props }) => (
+                                      <pre {...props} className="bg-gray-800 text-gray-200 p-3 rounded-md text-sm overflow-auto my-2" />
+                                    ),
+                                  }}
+                                >
                                   {message.content}
                                 </ReactMarkdown>
                               </div>
-                            )}
-                            
-                            {/* Render any visual components */}
-                            {message.visualData && message.visualData.map((visual, i) => (
-                              <div key={`visual-${i}`} className="mt-2">
-                                {renderVisualData(visual)}
-                              </div>
-                            ))}
-                          </>
-                        )}
+                              
+                              {message.visualData && message.visualData.length > 0 && (
+                                <div className="pt-2 space-y-3">
+                                  {message.visualData.map((visual, idx) => (
+                                    <div key={idx} className="border rounded-md p-3 bg-white">
+                                      {renderVisualData(visual)}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {formatTime(message.timestamp)}
-                      </p>
                     </div>
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
+              )}
+            </div>
+            
+            {/* Suggestion chips for empty state */}
+            {messages.length === 1 && messages[0].role === "assistant" && !isLoading && (
+              <div className="px-4 my-4">
+                <p className="text-sm font-medium mb-2 text-g15-primary">
+                  {t("aiAssistant.suggestions.title", "Try asking:")}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {suggestedPrompts.map((prompt, index) => (
+                    <Button
+                      key={index}
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full border-g15-primary/30 hover:border-g15-primary text-sm"
+                      onClick={() => handleUseSuggestion(prompt)}
+                    >
+                      {prompt}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            <div className="p-4 border-t">
+              <Form {...form}>
+                <form
+                  onSubmit={form.handleSubmit(handleSendMessage)}
+                  className="flex items-end space-x-2"
+                >
+                  <FormField
+                    control={form.control}
+                    name="content"
+                    render={({ field }) => (
+                      <FormItem className="flex-1">
+                        <FormControl>
+                          <Textarea
+                            placeholder={t("aiAssistant.inputPlaceholder", "Type your message...")}
+                            className="resize-none min-h-[60px] max-h-[120px]"
+                            {...field}
+                            disabled={isProcessing || !isPro}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                form.handleSubmit(handleSendMessage)();
+                              }
+                            }}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <Button
+                    type="submit"
+                    size="icon"
+                    className="h-[60px]"
+                    disabled={isProcessing || !isPro}
+                  >
+                    {isProcessing ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <Send className="h-5 w-5" />
+                    )}
+                  </Button>
+                </form>
+              </Form>
+              
+              {!isPro && (
+                <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md flex items-start space-x-2">
+                  <AlertCircle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-amber-800">
+                      {t("aiAssistant.proRequired", "This feature requires a Pro subscription")}
+                    </p>
+                    <Button
+                      variant="link"
+                      className="px-0 h-auto text-sm text-amber-600"
+                      onClick={() => navigate("/upgrade")}
+                    >
+                      {t("upgrade.upgradeToPro", "Upgrade to Pro")} 
+                      <ExternalLink className="ml-1 h-3 w-3" />
+                    </Button>
                   </div>
                 </div>
-              ))}
-              
-              <div ref={messagesEndRef} />
+              )}
             </div>
-          </CardContent>
-          
-          <CardFooter className="border-t p-4">
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(handleSendMessage)}
-                className="flex w-full gap-2"
-              >
-                <FormField
-                  control={form.control}
-                  name="content"
-                  render={({ field }) => (
-                    <FormItem className="flex-1">
-                      <FormControl>
-                        <Input
-                          placeholder={t("aiAssistant.askSomething", "Type your message...")}
-                          {...field}
-                          disabled={isProcessing}
-                          className="focus-visible:ring-1"
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <Button type="submit" disabled={isProcessing}>
-                  <Send className="h-4 w-4" />
-                  <span className="sr-only">{t("aiAssistant.send", "Send")}</span>
-                </Button>
-              </form>
-            </Form>
-          </CardFooter>
-        </Card>
-        
-        <div className="mb-4">
-          <h3 className="text-sm font-medium mb-2">{t("aiAssistant.suggestions.title", "Suggested Questions")}</h3>
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
-            {suggestedPrompts.map((prompt) => (
-              <Button
-                key={prompt}
-                variant="outline"
-                className="text-sm h-auto py-2 justify-start"
-                onClick={() => handleUseSuggestion(prompt)}
-                disabled={isProcessing}
-              >
-                {prompt}
-              </Button>
-            ))}
-          </div>
-        </div>
-        
-        <Card className="bg-muted/30">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">{t("aiAssistant.howToMakeTheMost", "How to make the most of your AI Assistant")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              {t("aiAssistant.assistantDescription", "You can ask about your financial situation, get personalized advice, budget suggestions, and more. The AI knows about your goals, recent transactions, and budget categories to give you tailored guidance.")}
-            </p>
           </CardContent>
         </Card>
       </div>
