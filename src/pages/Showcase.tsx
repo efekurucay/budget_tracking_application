@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Loader2, PlusCircle, Award, Target, Globe, Lock, Share2, Send, SparkleIcon, TrophyIcon } from "lucide-react";
+import { Loader2, PlusCircle, Award, Target, Globe, Share2, Send, SparkleIcon, TrophyIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useTranslation } from "react-i18next";
@@ -141,7 +141,7 @@ const Showcase = () => {
         throw error;
       }
     },
-    enabled: !isAuthLoading && isAuthenticated,
+    enabled: true,
   });
   
   // Fetch user's badges
@@ -164,7 +164,7 @@ const Showcase = () => {
       
       return data.map(item => item.badge) as Badge[];
     },
-    enabled: !isAuthLoading && isAuthenticated && user?.isPro && newShowcaseDialog,
+    enabled: !isAuthLoading && isAuthenticated && newShowcaseDialog,
   });
   
   // Fetch user's goals
@@ -185,7 +185,7 @@ const Showcase = () => {
       
       return data as Goal[];
     },
-    enabled: !isAuthLoading && isAuthenticated && user?.isPro && newShowcaseDialog,
+    enabled: !isAuthLoading && isAuthenticated && newShowcaseDialog,
   });
   
   // Add new showcase item
@@ -225,32 +225,6 @@ const Showcase = () => {
     addShowcaseMutation.mutate();
   };
   
-  // Check if user is Pro
-  if (!isAuthLoading && !user?.isPro) {
-    return (
-      <DashboardLayout>
-        <div className="container mx-auto py-8">
-          <Card className="border-yellow-200 bg-yellow-50">
-            <CardHeader>
-              <CardTitle className="text-yellow-800 flex items-center">
-                <Lock className="mr-2 h-5 w-5" />
-                Pro Özelliği
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p>Showcase özelliği sadece Pro üyeler tarafından kullanılabilir.</p>
-            </CardContent>
-            <CardFooter>
-              <Button onClick={() => navigate("/upgrade")}>
-                Pro'ya Yükselt
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-      </DashboardLayout>
-    );
-  }
-  
   // Loading state
   if (isAuthLoading) {
     return (
@@ -270,9 +244,11 @@ const Showcase = () => {
             <h1 className="text-2xl font-bold">Showcase</h1>
             <p className="text-gray-600">Topluluğun başarılarını görün ve kendinizinkini paylaşın</p>
           </div>
-          <Button onClick={() => setNewShowcaseDialog(true)}>
-            <PlusCircle className="mr-2 h-4 w-4" /> Başarını Paylaş
-          </Button>
+          {isAuthenticated && (
+            <Button onClick={() => setNewShowcaseDialog(true)}>
+              <PlusCircle className="mr-2 h-4 w-4" /> Başarını Paylaş
+            </Button>
+          )}
         </div>
         
         {isShowcaseLoading ? (
@@ -407,9 +383,11 @@ const Showcase = () => {
               <p className="text-gray-600 mb-6">
                 İlk paylaşımı siz yapın ve topluluğu başlatın!
               </p>
-              <Button onClick={() => setNewShowcaseDialog(true)}>
-                <PlusCircle className="mr-2 h-4 w-4" /> Başarını Paylaş
-              </Button>
+              {isAuthenticated && (
+                <Button onClick={() => setNewShowcaseDialog(true)}>
+                  <PlusCircle className="mr-2 h-4 w-4" /> Başarını Paylaş
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}
@@ -527,4 +505,4 @@ const Showcase = () => {
   );
 };
 
-export default Showcase; 
+export default Showcase;

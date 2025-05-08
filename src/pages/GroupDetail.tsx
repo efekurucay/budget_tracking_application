@@ -209,8 +209,22 @@ const GroupDetail = () => {
   });
   
   // Kullanıcının bu gruptaki rolünü belirle
-  const currentUserRole = members.find(member => member.user_id === user?.id)?.role || '';
-  const isOwner = currentUserRole === 'owner';
+  const userMember = members.find(member => member.user_id === user?.id);
+  const currentUserRole = userMember?.role || '';
+  const isOwner = currentUserRole === 'owner' || (group && user?.id === group.created_by);
+  
+  // Rol bilgisi için debug
+  console.log('Debug rol bilgisi:', {
+    userId: user?.id,
+    groupId,
+    groupCreatedBy: group?.created_by,
+    isCreator: user?.id === group?.created_by,
+    foundMember: !!userMember,
+    memberRole: userMember?.role,
+    currentUserRole,
+    isOwner,
+    allMembers: members.map(m => ({ userId: m.user_id, role: m.role }))
+  });
   
   // Grup ID'sini kopyala
   const handleCopyGroupId = () => {
@@ -1327,6 +1341,9 @@ const GroupDetail = () => {
                 <h3 className="text-lg font-medium">Yetki Gerekiyor</h3>
                 <p className="text-sm text-gray-500 mt-1 mb-8">
                   Grup ayarlarını değiştirmek için grup sahibi olmalısınız.
+                  Şu anki rolünüz: <Badge className="ml-1">
+                    {currentUserRole === 'owner' || user?.id === group.created_by ? 'Sahip' : 'Üye'}
+                  </Badge>
                 </p>
                 <Button 
                   variant="outline" 
@@ -1554,7 +1571,10 @@ const GroupDetail = () => {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Rolünüz:</span>
-                    <Badge>{currentUserRole || 'üye'}</Badge>
+                    <Badge>
+                      {currentUserRole === 'owner' ? 'Sahip' : 
+                       user?.id === group.created_by ? 'Sahip' : 'Üye'}
+                    </Badge>
                   </div>
                 </div>
               </CardContent>
@@ -1564,21 +1584,6 @@ const GroupDetail = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
             {/* İşlemler kartı */}
             <Card className="lg:col-span-2">
-              <CardHeader>
-                <Tabs defaultValue="transactions">
-                  <TabsList className="w-full">
-                    <TabsTrigger value="transactions" className="flex-1">
-                      <Wallet className="h-4 w-4 mr-2" /> İşlemler
-                    </TabsTrigger>
-                    <TabsTrigger value="settlements" className="flex-1" onClick={() => setShowSettlements(true)}>
-                      <CreditCard className="h-4 w-4 mr-2" /> Hesaplaşma
-                    </TabsTrigger>
-                    <TabsTrigger value="settings" className="flex-1">
-                      <Settings className="h-4 w-4 mr-2" /> Ayarlar
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </CardHeader>
               <CardContent>
                 {renderTabsContent()}
               </CardContent>
@@ -1646,7 +1651,9 @@ const GroupDetail = () => {
                               variant={member.role === 'owner' ? 'default' : 'secondary'}
                               className="text-xs"
                             >
-                              {member.role === 'owner' ? 'Sahip' : 'Üye'}
+                              {member.role === 'owner' || member.user_id === group.created_by 
+                                ? 'Sahip' 
+                                : 'Üye'}
                             </Badge>
                           </div>
                         </div>

@@ -101,6 +101,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       label: t("group.pageTitle", "Groups"),
       to: "/groups",
     },
+    {
+      icon: <Award size={20} />,
+      label: "Showcase",
+      to: "/showcase",
+    },
   ];
   
   // Add premium items for Pro users
@@ -109,12 +114,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       icon: <MessageSquare size={20} />,
       label: t("aiAssistant.pageTitle", "AI Assistant"),
       to: "/ai-assistant",
-    },
-    {
-      icon: <Award size={20} />,
-      label: "Showcase",
-      to: "/showcase",
-    },
+    }
   ] : [];
 
   // Add admin items
