@@ -106,6 +106,11 @@ const GroupDetail = () => {
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
   
+  // İşlem üyeleri ile ilgili state - Bu satırları renderTransactionsContent'ten ana bileşene taşıyorum
+  const [expandedTransaction, setExpandedTransaction] = useState<string | null>(null);
+  const [transactionMembers, setTransactionMembers] = useState<Record<string, TransactionMember[]>>({});
+  const [loadingMembers, setLoadingMembers] = useState<Record<string, boolean>>({});
+  
   // Grup bilgilerini çek
   const {
     data: group,
@@ -536,6 +541,27 @@ const GroupDetail = () => {
     return category ? category.name : "Diğer";
   };
   
+  // İşlem üyelerini getir ve göster
+  const loadTransactionMembers = async (transactionId: string) => {
+    if (transactionMembers[transactionId]?.length > 0) {
+      // Zaten yüklenmişse göster/gizle
+      setExpandedTransaction(expandedTransaction === transactionId ? null : transactionId);
+      return;
+    }
+    
+    setLoadingMembers(prev => ({ ...prev, [transactionId]: true }));
+    
+    try {
+      const members = await getTransactionMembers(transactionId);
+      setTransactionMembers(prev => ({ ...prev, [transactionId]: members }));
+      setExpandedTransaction(transactionId);
+    } catch (error) {
+      console.error("Error loading transaction members:", error);
+    } finally {
+      setLoadingMembers(prev => ({ ...prev, [transactionId]: false }));
+    }
+  };
+  
   // Transactions tab içeriğini ayırıp Hata Yönetimini Geliştiriyoruz
   const renderTransactionsContent = () => {
     // İşlem yüklenirken göster
@@ -590,32 +616,6 @@ const GroupDetail = () => {
         </div>
       );
     }
-    
-    // İşlem üyeleri ile ilgili state
-    const [expandedTransaction, setExpandedTransaction] = useState<string | null>(null);
-    const [transactionMembers, setTransactionMembers] = useState<Record<string, TransactionMember[]>>({});
-    const [loadingMembers, setLoadingMembers] = useState<Record<string, boolean>>({});
-    
-    // İşlem üyelerini getir ve göster
-    const loadTransactionMembers = async (transactionId: string) => {
-      if (transactionMembers[transactionId]?.length > 0) {
-        // Zaten yüklenmişse göster/gizle
-        setExpandedTransaction(expandedTransaction === transactionId ? null : transactionId);
-        return;
-      }
-      
-      setLoadingMembers(prev => ({ ...prev, [transactionId]: true }));
-      
-      try {
-        const members = await getTransactionMembers(transactionId);
-        setTransactionMembers(prev => ({ ...prev, [transactionId]: members }));
-        setExpandedTransaction(transactionId);
-      } catch (error) {
-        console.error("Error loading transaction members:", error);
-      } finally {
-        setLoadingMembers(prev => ({ ...prev, [transactionId]: false }));
-      }
-    };
     
     // İşlemleri listele
     return (

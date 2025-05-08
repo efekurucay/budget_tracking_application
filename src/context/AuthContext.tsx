@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/sonner"; // shadcn/ui sonner varsayılıyor
 import { supabase } from "@/integrations/supabase/client";
@@ -40,13 +40,16 @@ export const useAuth = () => {
 
 // Ana AuthProvider bileşeni
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<UserProfile | null>(null); // Kullanıcı state'i, başlangıçta null
-  const [isLoading, setIsLoading] = useState(true);          // Yükleme state'i, başlangıçta true
-  const navigate = useNavigate();                           // Yönlendirme için hook
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true); // Başlangıçta HER ZAMAN true
+  const navigate = useNavigate();
+  // Component'in bağlı olup olmadığını takip etmek için useRef
+  const isMounted = useRef(true);
 
   // Kullanıcı profilini Supabase'den çekmek için asenkron fonksiyon
-  const fetchUserProfile = async (userId: string, userEmail: string): Promise<UserProfile | null> => {
-    console.log(`[${new Date().toISOString()}] AuthContext: Profil çekiliyor:`, userId);
+  const fetchUserProfile = async (userId: string, userEmail: string): Promise<UserProfile> => {
+    const logPrefix = `[${new Date().toISOString()}] AuthContext FetchProfile:`;
+    console.log(`${logPrefix} Kullanıcı ${userId} için çekiliyor...`);
     try {
       const { data, error } = await supabase
         .from("profiles")
@@ -55,180 +58,130 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .single();
 
       if (error) {
-        if (error.code === 'PGRST116') { // Resource not found (Profile doesn't exist yet)
-          console.warn(`[${new Date().toISOString()}] AuthContext: Profil bulunamadı (PGRST116), muhtemelen yeni kullanıcı:`, userId);
-          
-          // Yeni profil oluşturma girişimi
-          try {
-            const { error: insertError } = await supabase
-              .from("profiles")
-              .insert([{ id: userId, first_name: "", last_name: "" }]);
-            
-            if (insertError) {
-              console.error("AuthContext: Yeni profil oluşturma hatası:", insertError);
-            } else {
-              console.log("AuthContext: Yeni profil oluşturuldu:", userId);
-            }
-          } catch (insertErr) {
-            console.error("AuthContext: Profil oluşturma işlemi sırasında hata:", insertErr);
-          }
-          
-          // Yeni kullanıcı için varsayılan profil döndür
-          return { 
-            id: userId, 
-            email: userEmail, 
-            firstName: "", 
-            lastName: "", 
-            isPro: false, 
-            points: 0, 
-            isAdmin: false 
-          };
+        if (error.code === 'PGRST116') { // Profil henüz yok
+          console.warn(`${logPrefix} Profil bulunamadı (PGRST116), varsayılan oluşturuluyor:`, userId);
+           // Profil yoksa varsayılan bir tane oluşturmayı deneyelim (opsiyonel ama iyi pratik)
+           try {
+             const { error: insertError } = await supabase
+               .from("profiles")
+               .insert([{ id: userId, first_name: "", last_name: "" }]); // Sadece ID ile oluştur
+             if (insertError && insertError.code !== '23505') { // 23505 = unique_violation (zaten varsa)
+               console.error(`${logPrefix} Yeni profil oluşturma hatası:`, insertError);
+             } else if (!insertError) {
+               console.log(`${logPrefix} Yeni profil satırı oluşturuldu:`, userId);
+             }
+           } catch (insertErr) {
+              console.error(`${logPrefix} Profil oluşturma istisnası:`, insertErr);
+           }
+          return { id: userId, email: userEmail, firstName: "", lastName: "", isPro: false, points: 0, isAdmin: false };
         } else {
-          console.error("AuthContext: Profil çekme hatası:", error);
-          throw error;
+            console.error(`${logPrefix} Profil çekme hatası:`, error);
+            // Diğer hatalarda da varsayılan döndür
+            return { id: userId, email: userEmail, firstName: "", lastName: "", isPro: false, points: 0, isAdmin: false };
         }
       }
-
       if (data) {
-        console.log("AuthContext: Profil verileri başarıyla alındı");
+        console.log(`${logPrefix} Profil başarıyla çekildi.`);
         return {
-          id: data.id,
-          email: userEmail,
-          firstName: data.first_name || "",
-          lastName: data.last_name || "",
-          isPro: data.is_pro || false,
-          points: data.points || 0,
-          isAdmin: data.is_admin || false,
+          id: data.id, email: userEmail, firstName: data.first_name || "", lastName: data.last_name || "",
+          isPro: data.is_pro || false, points: data.points || 0, isAdmin: data.is_admin || false,
         };
       }
-      console.warn("AuthContext: Profil verisi bulunamadı ama hata da yok");
-      return { 
-        id: userId, 
-        email: userEmail, 
-        firstName: "", 
-        lastName: "", 
-        isPro: false, 
-        points: 0, 
-        isAdmin: false 
-      };
+      console.warn(`${logPrefix} Veri yok/hata yok, varsayılan kullanılıyor.`);
+      return { id: userId, email: userEmail, firstName: "", lastName: "", isPro: false, points: 0, isAdmin: false };
     } catch (error) {
-      console.error("AuthContext: Profil çekme işleminde beklenmeyen hata:", error);
-      // Hata durumunda varsayılan profil döndür - bu, uygulamanın çalışmaya devam etmesini sağlar
-      return { 
-        id: userId, 
-        email: userEmail, 
-        firstName: "", 
-        lastName: "", 
-        isPro: false, 
-        points: 0, 
-        isAdmin: false 
-      };
+      console.error(`${logPrefix} İstisna:`, error);
+      return { id: userId, email: userEmail, firstName: "", lastName: "", isPro: false, points: 0, isAdmin: false }; // Hata durumunda varsayılan
     }
   };
 
-  // Auth state listener and initial check
-  useEffect(() => {
-    console.log("AuthContext: Setting up listener and initial session check");
-    let isMounted = true; // Bileşen bağlantısını takip etmek için
-    setIsLoading(true); // Ensure loading state is true initially
-
-    // Initial session check
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (!isMounted) return; // Component unmounted, don't update state
-      
-      if (error) {
-        console.error("AuthContext: Error getting initial session:", error);
-        setIsLoading(false); // End loading even if there's an error
-        return;
-      }
-      
-      console.log("AuthContext: Initial session check complete", session ? "Session exists" : "No session");
-      
-      if (session?.user) {
-        loadUserSession(session.user);
-        // loadUserSession will set isLoading to false in finally block
+  // Oturum durumuna göre kullanıcı state'ini yöneten fonksiyon
+  const updateUserState = async (sessionUser: User | null) => {
+    const logPrefix = `[${new Date().toISOString()}] AuthContext updateUserState:`;
+    try {
+      if (sessionUser) {
+        console.log(`${logPrefix} Oturum var, profil çekiliyor:`, sessionUser.id);
+        const profile = await fetchUserProfile(sessionUser.id, sessionUser.email || "");
+        if (isMounted.current) setUser(profile); // Sadece component bağlıysa güncelle
       } else {
-        setUser(null);
-        setIsLoading(false);
+        console.log(`${logPrefix} Oturum yok, kullanıcı null yapılıyor.`);
+        if (isMounted.current) setUser(null);
       }
+    } catch (err) {
+      console.error(`${logPrefix} Profil çekme hatası:`, err);
+      if (isMounted.current) setUser(null);
+    } finally {
+      // Bu fonksiyon çağrıldığında YÜKLEME BİTMİŞ DEMEKTİR.
+      if (isMounted.current) {
+          console.log(`${logPrefix} Yükleme durumu false yapılıyor.`);
+          setIsLoading(false);
+      }
+    }
+  }
+
+  // Kimlik doğrulama durumu dinleyicisi ve başlangıç kontrolü
+  useEffect(() => {
+    const logPrefix = `[${new Date().toISOString()}] AuthContext useEffect:`;
+    isMounted.current = true;
+    console.log(`${logPrefix} Başlıyor, isLoading=true`);
+    setIsLoading(true);
+
+    let initialCheckDone = false; // Başlangıç kontrolü ve listener çakışmasını önlemek için
+
+    // 1. Başlangıç Oturum Kontrolü
+    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
+      if (!isMounted.current) return;
+      console.log(`${logPrefix} getSession sonucu geldi.`);
+
+      if (error) {
+        console.error(`${logPrefix} Başlangıç oturumu alma hatası:`, error);
+        setUser(null);
+        setIsLoading(false); // Hata durumunda yüklemeyi bitir
+      } else {
+        console.log(`${logPrefix} Başlangıç oturumu:`, session ? session.user.id : "Yok");
+        // Oturum durumuna göre kullanıcıyı ayarla VE isLoading'i false yap
+        await updateUserState(session?.user || null);
+      }
+      initialCheckDone = true; // Başlangıç kontrolü tamamlandı
+      console.log(`${logPrefix} Başlangıç kontrolü tamamlandı (initialCheckDone=true).`);
+
     }).catch(err => {
-      if (!isMounted) return;
-      console.error("AuthContext: Unexpected error in getSession:", err);
-      setIsLoading(false); // End loading on unexpected error
+      if (!isMounted.current) return;
+      console.error(`${logPrefix} getSession catch bloğu:`, err);
+      setUser(null);
+      setIsLoading(false); // Beklenmedik hatada yüklemeyi bitir
+      initialCheckDone = true; // Hata olsa bile kontrol bitti
     });
 
-    // Auth state change listener
+    // 2. Auth State Dinleyicisi
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log(`AuthContext: Auth state changed: ${event}`, session ? "Session exists" : "No session");
-        
-        if (!isMounted) return; // Bileşen bağlı değilse işleme devam etme
-        
-        // Handle different auth events
-        if (['SIGNED_IN', 'USER_UPDATED', 'TOKEN_REFRESHED'].includes(event)) {
-          setIsLoading(true); // Kimlik durumu değiştiğinde yüklemeyi başlat
-          if (session?.user) {
-            await loadUserSession(session.user);
-            // loadUserSession will set isLoading to false in finally block
-          } else {
-            // Normalde buraya ulaşılmamalı, ama güvenlik için ekledik
-            setUser(null);
-            setIsLoading(false);
-          }
-        } else if (event === 'SIGNED_OUT') {
-          console.log("AuthContext: SIGNED_OUT event, clearing user");
-          setUser(null);
-          setIsLoading(false);
-        } else if (event === 'INITIAL_SESSION') {
-          // Bu durumda bir şey yapma, getSession zaten işlemi gerçekleştirdi
-          console.log("AuthContext: INITIAL_SESSION event, already handled by getSession");
+        console.log(`${logPrefix} onAuthStateChange olayı: ${event}`);
+        if (!isMounted.current) return;
+
+        // Eğer başlangıç kontrolü henüz bitmediyse (çok hızlı tetiklenirse)
+        // veya INITIAL_SESSION olayıysa (getSession zaten halletti), bekle.
+        if (!initialCheckDone || event === 'INITIAL_SESSION') {
+          console.log(`${logPrefix} onAuthStateChange - Olay atlanıyor (checkDone: ${initialCheckDone}, event: ${event}).`);
+          // Eğer INITIAL_SESSION ise ve checkInitialSession hala bitmemişse diye
+          // isLoading'i burada false yapmaya gerek YOK, checkInitialSession'ın finally'si yapar.
+          return;
         }
+
+        console.log(`${logPrefix} onAuthStateChange - State güncelleniyor (event: ${event})...`);
+        // Diğer tüm olaylar için (SIGNED_IN, SIGNED_OUT, USER_UPDATED vb.) state'i güncelle.
+        // Burada tekrar isLoading=true yapmaya gerek yok, direkt güncelleme yeterli.
+        await updateUserState(session?.user || null); // Bu fonksiyon isLoading'i false yapar
       }
     );
 
+    // Cleanup
     return () => {
-      console.log("AuthContext: Cleaning up auth listener");
-      isMounted = false; // Bileşen unmount edildiğinde flag'i güncelle
+      console.log(`${logPrefix} useEffect cleanup.`);
+      isMounted.current = false;
       subscription.unsubscribe();
     };
-  }, []); // Only run on component mount
-
-  // Load user session based on session user
-  const loadUserSession = async (sessionUser: User | null) => {
-    try {
-      if (sessionUser) {
-        console.log("AuthContext: Session found, fetching profile...", sessionUser.id);
-        const profile = await fetchUserProfile(sessionUser.id, sessionUser.email || "");
-        setUser(profile);
-        console.log("AuthContext: User state set with profile data.", profile);
-      } else {
-        console.log("AuthContext: No active session, clearing user state");
-        setUser(null);
-      }
-    } catch (err) {
-      console.error("AuthContext: Error while fetching profile during session load:", err);
-      // Profil çekme hatası olsa bile oturumun varlığını kabul et, varsayılan profille devam et
-      if (sessionUser) {
-        const defaultProfile = { 
-          id: sessionUser.id, 
-          email: sessionUser.email || "", 
-          firstName: "", 
-          lastName: "", 
-          isPro: false, 
-          points: 0, 
-          isAdmin: false 
-        };
-        setUser(defaultProfile);
-        console.log("AuthContext: Error recovery - setting default profile", defaultProfile);
-      } else {
-        setUser(null);
-      }
-    } finally {
-      // Her durumda yükleme durumunu false yap
-      console.log("AuthContext: Setting isLoading to false");
-      setIsLoading(false);
-    }
-  }
+  }, []); // Sadece mount'ta çalışır
 
   // Giriş fonksiyonu
   const login = async (email: string, password: string) => {
@@ -321,19 +274,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Kullanıcı profilini manuel olarak yenileme fonksiyonu
   const refreshUserProfile = async () => {
     const logPrefix = `[${new Date().toISOString()}] AuthContext:`;
-    // Önce mevcut Supabase oturumunu al
     const { data: { session } } = await supabase.auth.getSession();
-    // Oturum varsa ve context'teki kullanıcı ile aynıysa
     if (session?.user) {
         console.log(`${logPrefix} Kullanıcı profili manuel yenileniyor...`);
-        setIsLoading(true); // Yenileme sırasında yükleniyor göster
-        // updateUserState fonksiyonunu çağırarak profili tekrar çek ve state'i güncelle
-        // Bu fonksiyon isLoading'i false yapacak.
-        // isMounted referansını burada oluşturup iletmek gerekir ama basitlik için şimdilik direkt çağırıyoruz.
-        // Gerçek kullanımda, bu fonksiyonun çağrıldığı yerde bir 'iptal' mekanizması olması daha iyi olabilir.
-        await loadUserSession(session.user); // Basit isMounted simülasyonu
+        setIsLoading(true); // Manuel yenilemede loading göster
+        // updateUserState, isLoading'i tekrar false yapacak
+        await updateUserState(session.user);
     } else {
         console.warn(`${logPrefix} Manuel profil yenileme yapılamıyor, aktif oturum yok.`);
+        setIsLoading(false); // Oturum yoksa da loading bitmeli
     }
   };
 

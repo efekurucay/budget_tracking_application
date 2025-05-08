@@ -1,7 +1,7 @@
 # Budget Tracking Application Todo List
 
 ## Completed Tasks
-- Codebase indexed and detailed structure examined
+- Codebase indexed and detailed structure examined [02.11.2023]
 - Application framework created with React + TypeScript + Vite + TailwindCSS
 - User authentication system integrated (Supabase Auth)
 - Home page, sign-in/sign-up pages and dashboard pages created
@@ -27,6 +27,8 @@
 - Added RPC functions for secure group transaction operations
 - Added option for users to choose transaction categories
 - Allow assigning expenses to specific group members
+- Codebase indexed and analyzed for current task [08.11.2023]
+- Fixed infinite loading issue with improved AuthContext implementation [08.11.2023]
 
 ## Current Tasks
 - Implement expense settlement functionality for groups
@@ -60,3 +62,20 @@
 ## Known Issues
 - Some UI components may not be fully responsive on very small screens
 - Authentication state synchronization can be improved further
+
+## Yapılanlar
+
+- [x] Supabase'de grup işlemleri için altyapı oluştur
+- [x] Grup işlemleri için UI geliştir
+- [x] Grup üyelerine işlem atama sistemi ekle
+- [x] Grup işlemleri için kategoriler ekle
+- [x] GroupDetail.tsx dosyasındaki hook kullanım hatalarını düzelt
+- [x] React hook ihlallerini gider ve performans sorunlarını çöz
+- [x] Kod tabanı indekslendi ve analiz edildi
+- [x] AuthContext.tsx içindeki sonsuz yükleme sorunlarını çöz
+
+## Yapılacaklar
+
+- [ ] Grup işlemlerini kategorilere göre filtreleme ekle
+- [ ] Grup işlemlerini tarihe göre filtreleme ekle
+- [ ] Kullanıcılar arasında hesap uzlaştırma sistemi ekle
