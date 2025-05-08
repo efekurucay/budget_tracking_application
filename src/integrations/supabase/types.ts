@@ -444,6 +444,169 @@ export type Database = {
           }
         ]
       },
+      ai_conversations: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          title?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_conversations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      },
+      ai_messages: {
+        Row: {
+          id: string
+          conversation_id: string
+          role: string
+          content: string
+          timestamp: string
+          visual_data: any | null
+        }
+        Insert: {
+          id?: string
+          conversation_id: string
+          role: string
+          content: string
+          timestamp?: string
+          visual_data?: any | null
+        }
+        Update: {
+          id?: string
+          conversation_id?: string
+          role?: string
+          content?: string
+          timestamp?: string
+          visual_data?: any | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_conversations"
+            referencedColumns: ["id"]
+          }
+        ]
+      },
+      group_invites: {
+        Row: {
+          id: string
+          group_id: string
+          invited_by: string
+          email: string
+          invitation_code: string
+          status: 'pending' | 'accepted' | 'declined' | 'expired'
+          created_at: string
+          updated_at: string
+          expires_at: string
+        }
+        Insert: {
+          id?: string
+          group_id: string
+          invited_by: string
+          email: string
+          invitation_code?: string
+          status?: 'pending' | 'accepted' | 'declined' | 'expired'
+          created_at?: string
+          updated_at?: string
+          expires_at?: string
+        }
+        Update: {
+          id?: string
+          group_id?: string
+          invited_by?: string
+          email?: string
+          invitation_code?: string
+          status?: 'pending' | 'accepted' | 'declined' | 'expired'
+          created_at?: string
+          updated_at?: string
+          expires_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_invites_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_invites_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      },
+      upgrade_requests: {
+        Row: {
+          id: string
+          user_id: string
+          status: 'pending' | 'approved' | 'rejected'
+          notes: string | null
+          created_at: string
+          approved_by: string | null
+          approved_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          status: 'pending' | 'approved' | 'rejected'
+          notes?: string | null
+          created_at?: string
+          approved_by?: string | null
+          approved_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          status?: 'pending' | 'approved' | 'rejected'
+          notes?: string | null
+          created_at?: string
+          approved_by?: string | null
+          approved_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "upgrade_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "upgrade_requests_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      },
     }
     Views: {
       [_ in never]: never
@@ -504,6 +667,182 @@ export type Database = {
       mark_all_notifications_as_read: {
         Args: Record<string, never>
         Returns: null
+      },
+      get_ai_conversations: {
+        Args: {
+          user_id_param: string
+        }
+        Returns: {
+          id: string
+          user_id: string
+          title: string
+          created_at: string
+          updated_at: string
+        }[]
+      },
+      get_ai_messages: {
+        Args: {
+          conversation_id_param: string
+          user_id_param: string
+        }
+        Returns: {
+          id: string
+          conversation_id: string
+          role: string
+          content: string
+          timestamp: string
+          visual_data: any | null
+        }[]
+      },
+      calculate_group_settlement: {
+        Args: {
+          group_id_param: string
+        }
+        Returns: {
+          from_user_id: string;
+          to_user_id: string;
+          amount: number;
+          from_user_name: string;
+          to_user_name: string;
+        }[]
+      },
+      create_group_invitation: {
+        Args: {
+          p_group_id: string
+          p_invited_by: string
+          p_email: string
+        }
+        Returns: {
+          id: string
+          group_id: string
+          invited_by: string
+          email: string
+          invitation_code: string
+          status: 'pending' | 'accepted' | 'declined' | 'expired'
+          created_at: string
+          updated_at: string
+          expires_at: string
+        }
+      },
+      accept_group_invitation: {
+        Args: {
+          p_invitation_code: string
+          p_user_id: string
+        }
+        Returns: {
+          id: string
+          group_id: string
+          user_id: string
+          role: string
+          joined_at: string
+        }
+      },
+      get_group_invitations: {
+        Args: {
+          p_group_id: string
+        }
+        Returns: {
+          id: string
+          group_id: string
+          invited_by: string
+          email: string
+          invitation_code: string
+          status: 'pending' | 'accepted' | 'declined' | 'expired'
+          created_at: string
+          updated_at: string
+          expires_at: string
+        }[]
+      },
+      get_invitation_by_code: {
+        Args: {
+          p_invitation_code: string
+        }
+        Returns: {
+          id: string
+          group_id: string
+          invited_by: string
+          email: string
+          invitation_code: string
+          status: 'pending' | 'accepted' | 'declined' | 'expired'
+          created_at: string
+          updated_at: string
+          expires_at: string
+        }
+      },
+      join_group_by_code: {
+        Args: {
+          p_invitation_code: string
+          p_user_id: string
+        }
+        Returns: {
+          id: string
+          group_id: string
+          user_id: string
+          role: string
+          joined_at: string
+        }
+      },
+      request_pro_upgrade: {
+        Args: {
+          p_notes: string
+        }
+        Returns: {
+          success: boolean
+          message: string
+          request_id?: string
+        }
+      },
+      check_pending_upgrade_request: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: boolean
+      },
+      is_admin: {
+        Args: Record<string, never>
+        Returns: boolean
+      },
+      approve_upgrade_request: {
+        Args: {
+          p_request_id: string
+        }
+        Returns: {
+          success: boolean
+          message: string
+        }
+      },
+      reject_upgrade_request: {
+        Args: {
+          p_request_id: string
+          p_reason?: string
+        }
+        Returns: {
+          success: boolean
+          message: string
+        }
+      },
+      cancel_upgrade_request: {
+        Args: {
+          p_request_id: string
+        }
+        Returns: {
+          success: boolean
+          message: string
+        }
+      },
+      get_upgrade_requests: {
+        Args: {
+          p_status?: string
+        }
+        Returns: {
+          id: string
+          user_id: string
+          status: 'pending' | 'approved' | 'rejected'
+          notes: string | null
+          created_at: string
+          approved_by: string | null
+          approved_at: string | null
+        }[]
       },
     }
     Enums: {

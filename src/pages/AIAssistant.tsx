@@ -30,11 +30,20 @@ import { useAuth } from "@/context/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 
 // Message schema 
 const messageSchema = z.object({
   content: z.string().min(1, "Please enter a message"),
 });
+
+type VisualDataType = "progress" | "chart" | "link" | "table" | "suggestion";
+
+type VisualData = {
+  type: VisualDataType;
+  data: any;
+};
 
 type Message = {
   id: string;
@@ -42,10 +51,7 @@ type Message = {
   content: string;
   timestamp: Date;
   isLoading?: boolean;
-  visualData?: {
-    type: "progress" | "chart" | "link" | "table" | "suggestion";
-    data: any;
-  }[];
+  visualData?: VisualData[];
 };
 
 type ConversationHistory = {
@@ -53,6 +59,26 @@ type ConversationHistory = {
   title: string;
   lastMessageDate: Date;
   messages: Message[];
+};
+
+// Helper function to safely convert database roles to message roles
+const convertToMessageRole = (role: string): "user" | "assistant" => {
+  return role === "user" ? "user" : "assistant";
+};
+
+// Helper function to safely convert database visual data to message visual data
+const convertToVisualData = (visualData: any): VisualData[] | undefined => {
+  if (!visualData) return undefined;
+  
+  try {
+    return visualData.map((vd: any) => ({
+      type: vd.type as VisualDataType,
+      data: vd.data
+    }));
+  } catch (err) {
+    console.error("Error converting visual data:", err);
+    return undefined;
+  }
 };
 
 const AIAssistant = () => {
@@ -111,35 +137,62 @@ const AIAssistant = () => {
       if (!user?.id) return;
       
       try {
-        // In a real app, you would store conversations in Supabase
-        // For now, we'll use localStorage to simulate this
-        const savedConversations = localStorage.getItem(`g15_conversations_${user.id}`);
-        if (savedConversations) {
-          const parsed = JSON.parse(savedConversations);
-          setConversations(parsed);
-          
-          // If we have conversations, load the latest one
-          if (parsed.length > 0) {
-            const latestConversation = parsed.sort((a: ConversationHistory, b: ConversationHistory) => 
-              new Date(b.lastMessageDate).getTime() - new Date(a.lastMessageDate).getTime()
-            )[0];
+        setIsLoading(true);
+        
+        // Supabase'den kullanıcının konuşmalarını getir
+        const { data: conversationsData, error: conversationsError } = await supabase
+          .rpc('get_ai_conversations', { user_id_param: user.id });
+        
+        if (conversationsError) throw conversationsError;
+        
+        if (conversationsData && conversationsData.length > 0) {
+          // Konuşmaları düzenle ve state'e ekle
+          const formattedConversations = await Promise.all(conversationsData.map(async (conv) => {
+            // Her konuşma için mesajları getir
+            const { data: messagesData, error: messagesError } = await supabase
+              .rpc('get_ai_messages', { 
+                conversation_id_param: conv.id,
+                user_id_param: user.id
+              });
             
-            setCurrentConversationId(latestConversation.id);
-            setMessages(latestConversation.messages.map((msg: any) => ({
-              ...msg,
-              timestamp: new Date(msg.timestamp)
-            })));
-          } else {
-            // If no conversations, create a welcome message
-            addWelcomeMessage();
-          }
+            if (messagesError) throw messagesError;
+            
+            // Mesajları doğru formata dönüştür
+            const formattedMessages = messagesData.map(msg => ({
+              id: msg.id,
+              role: convertToMessageRole(msg.role),
+              content: msg.content,
+              timestamp: new Date(msg.timestamp),
+              visualData: convertToVisualData(msg.visual_data)
+            }));
+            
+            return {
+              id: conv.id,
+              title: conv.title,
+              lastMessageDate: new Date(conv.updated_at),
+              messages: formattedMessages
+            };
+          }));
+          
+          setConversations(formattedConversations);
+          
+          // En son konuşmayı yükle
+          const latestConversation = formattedConversations.sort((a, b) => 
+            b.lastMessageDate.getTime() - a.lastMessageDate.getTime()
+          )[0];
+          
+          setCurrentConversationId(latestConversation.id);
+          setMessages(latestConversation.messages);
         } else {
-          // If no conversations, create a welcome message
+          // Konuşma yoksa, yeni bir hoş geldin mesajı oluştur
           addWelcomeMessage();
         }
       } catch (error) {
         console.error("Error loading conversation history:", error);
+        toast.error(t("error.loading_conversations", "Konuşma geçmişi yüklenirken bir hata oluştu"));
         addWelcomeMessage();
+      } finally {
+        setIsLoading(false);
       }
     };
     
@@ -159,103 +212,134 @@ const AIAssistant = () => {
     }
   }, [profileData]);
 
-  const addWelcomeMessage = () => {
-    const welcomeMessage = {
-      id: "welcome-message",
-      role: "assistant" as const,
-      content: t("aiAssistant.welcomeMessage", "Hello! I'm your G15 AI financial assistant. How can I help you with your finances today?"),
-      timestamp: new Date(),
-      visualData: [
-        {
-          type: "suggestion" as const,
-          data: [
-            t("aiAssistant.suggestions.general.0", "How do I create a budget?"),
-            t("aiAssistant.suggestions.general.1", "What are good saving strategies?"),
-            t("aiAssistant.suggestions.general.2", "How can I reduce my expenses?")
-          ]
-        }
-      ]
-    };
-    
-    setMessages([welcomeMessage]);
-    
-    // Create a new conversation
-    const newConversation = {
-      id: crypto.randomUUID(),
-      title: t("aiAssistant.newConversation", "New Conversation"),
-      lastMessageDate: new Date(),
-      messages: [welcomeMessage]
-    };
-    
-    setCurrentConversationId(newConversation.id);
-    setConversations([newConversation]);
-    
-    // Save to localStorage
-    if (user?.id) {
-      localStorage.setItem(`g15_conversations_${user.id}`, JSON.stringify([newConversation]));
-    }
-  };
-
-  // Fetch user's financial data to provide to the AI
-  const fetchUserFinancialContext = async () => {
-    if (!user?.id) return null;
+  const addWelcomeMessage = async () => {
+    if (!user?.id) return;
     
     try {
-      // Get user's goals
-      const { data: goals } = await supabase
-        .from("goals")
-        .select("name, target_amount, current_amount")
-        .eq("user_id", user.id)
-        .limit(5);
+      // Yeni bir konuşma oluştur
+      const { data: conversationData, error: conversationError } = await supabase
+        .from('ai_conversations')
+        .insert({
+          user_id: user.id,
+          title: t("aiAssistant.newConversation", "Yeni Konuşma")
+        })
+        .select()
+        .single();
       
-      // Get user's recent transactions
-      const { data: transactions } = await supabase
-        .from("transactions")
-        .select("amount, type, category, date, description")
-        .eq("user_id", user.id)
-        .order("date", { ascending: false })
-        .limit(15);
+      if (conversationError) throw conversationError;
       
-      // Get user's budget categories
-      const { data: categories } = await supabase
-        .from("budget_categories")
-        .select("name, budget_amount")
-        .eq("user_id", user.id);
+      const conversationId = conversationData.id;
       
-      return {
-        goals: goals || [],
-        transactions: transactions || [],
-        categories: categories || []
+      // Hoş geldin mesajını oluştur
+      const welcomeMessageContent = t("aiAssistant.welcomeMessage", "Merhaba! Ben G15 AI finansal asistanınızım. Bugün finanslarınızla ilgili size nasıl yardımcı olabilirim?");
+      
+      // Visual data için JSON
+      const visualData: VisualData = {
+        type: "suggestion",
+        data: [
+          t("aiAssistant.suggestions.general.0", "Bütçe nasıl oluşturulur?"),
+          t("aiAssistant.suggestions.general.1", "İyi tasarruf stratejileri nelerdir?"),
+          t("aiAssistant.suggestions.general.2", "Harcamalarımı nasıl azaltabilirim?")
+        ]
       };
+      
+      // Hoş geldin mesajını veritabanına ekle
+      const { data: messageData, error: messageError } = await supabase
+        .from('ai_messages')
+        .insert({
+          conversation_id: conversationId,
+          role: 'assistant',
+          content: welcomeMessageContent,
+          visual_data: [visualData]
+        })
+        .select()
+        .single();
+      
+      if (messageError) throw messageError;
+      
+      // State'i güncelle
+      const welcomeMessage: Message = {
+        id: messageData.id,
+        role: "assistant",
+        content: welcomeMessageContent,
+        timestamp: new Date(messageData.timestamp),
+        visualData: [visualData]
+      };
+      
+      setMessages([welcomeMessage]);
+      setCurrentConversationId(conversationId);
+      
+      // Konuşmalar listesini güncelle
+      const newConversation: ConversationHistory = {
+        id: conversationId,
+        title: t("aiAssistant.newConversation", "Yeni Konuşma"),
+        lastMessageDate: new Date(),
+        messages: [welcomeMessage]
+      };
+      
+      setConversations(prev => [newConversation, ...prev]);
+      
     } catch (error) {
-      console.error("Error fetching financial data:", error);
-      return null;
+      console.error("Error creating welcome message:", error);
+      toast.error(t("error.creating_conversation", "Yeni konuşma oluşturulurken bir hata oluştu"));
     }
   };
 
-  const saveConversation = (updatedMessages: Message[]) => {
+  const saveConversation = async (updatedMessages: Message[]) => {
     if (!user?.id || !currentConversationId) return;
     
-    // Find the current conversation and update it
-    const updatedConversations = conversations.map(conv => {
-      if (conv.id === currentConversationId) {
-        return {
-          ...conv,
-          lastMessageDate: new Date(),
-          messages: updatedMessages,
-          // Update title based on first few messages if it's "New Conversation"
-          title: conv.title === "New Conversation" && updatedMessages.length >= 3 ? 
-            updatedMessages[1].content.substring(0, 30) + "..." : 
-            conv.title
-        };
-      }
-      return conv;
-    });
-    
-    setConversations(updatedConversations);
-    
-    // Save to localStorage
-    localStorage.setItem(`g15_conversations_${user.id}`, JSON.stringify(updatedConversations));
+    try {
+      // Son eklenen mesajı al
+      const lastMessage = updatedMessages[updatedMessages.length - 1];
+      
+      // Mesajı veritabanına kaydet
+      const { error: messageError } = await supabase
+        .from('ai_messages')
+        .insert({
+          conversation_id: currentConversationId,
+          role: lastMessage.role,
+          content: lastMessage.content,
+          timestamp: lastMessage.timestamp.toISOString(),
+          visual_data: lastMessage.visualData || null
+        });
+      
+      if (messageError) throw messageError;
+      
+      // Konuşmanın son güncelleme zamanını güncelle
+      const { error: conversationError } = await supabase
+        .from('ai_conversations')
+        .update({ 
+          updated_at: new Date().toISOString(),
+          // Eğer konuşma başlığı "Yeni Konuşma" ise ve en az 3 mesaj varsa başlığı güncelle
+          ...(updatedMessages.length >= 3 && conversations.find(c => c.id === currentConversationId)?.title === t("aiAssistant.newConversation", "Yeni Konuşma") ? {
+            title: updatedMessages[1].content.substring(0, 30) + "..."
+          } : {})
+        })
+        .eq('id', currentConversationId);
+      
+      if (conversationError) throw conversationError;
+      
+      // Konuşmalar listesini güncelle
+      const updatedConversations = conversations.map(conv => {
+        if (conv.id === currentConversationId) {
+          return {
+            ...conv,
+            lastMessageDate: new Date(),
+            messages: updatedMessages,
+            title: conv.title === t("aiAssistant.newConversation", "Yeni Konuşma") && updatedMessages.length >= 3 ? 
+              updatedMessages[1].content.substring(0, 30) + "..." : 
+              conv.title
+          };
+        }
+        return conv;
+      });
+      
+      setConversations(updatedConversations);
+      
+    } catch (error) {
+      console.error("Error saving conversation:", error);
+      toast.error(t("error.saving_conversation", "Konuşma kaydedilirken bir hata oluştu"));
+    }
   };
 
   const enhanceAIResponse = (text: string) => {
@@ -295,6 +379,43 @@ const AIAssistant = () => {
     };
   };
 
+  // Fetch user's financial data to provide to the AI
+  const fetchUserFinancialContext = async () => {
+    if (!user?.id) return null;
+    
+    try {
+      // Get user's goals
+      const { data: goals } = await supabase
+        .from("goals")
+        .select("name, target_amount, current_amount")
+        .eq("user_id", user.id)
+        .limit(5);
+      
+      // Get user's recent transactions
+      const { data: transactions } = await supabase
+        .from("transactions")
+        .select("amount, type, category, date, description")
+        .eq("user_id", user.id)
+        .order("date", { ascending: false })
+        .limit(15);
+      
+      // Get user's budget categories
+      const { data: categories } = await supabase
+        .from("budget_categories")
+        .select("name, budget_amount")
+        .eq("user_id", user.id);
+      
+      return {
+        goals: goals || [],
+        transactions: transactions || [],
+        categories: categories || []
+      };
+    } catch (error) {
+      console.error("Error fetching financial data:", error);
+      return null;
+    }
+  };
+
   const handleSendMessage = async (data: z.infer<typeof messageSchema>) => {
     // Check if user is Pro
     if (isPro === false) {
@@ -329,13 +450,19 @@ const AIAssistant = () => {
     try {
       // Get user's financial context
       const financialContext = await fetchUserFinancialContext();
+
+      // Yeni konuşma oluştur ve ID'yi al
+      if (!currentConversationId) {
+        await startNewConversation();
+      }
       
       // Call the edge function
       const { data: responseData, error } = await supabase.functions.invoke("ai-finance-assistant", {
         body: { 
           message: userMessage.content,
           userId: user?.id,
-          financialContext
+          financialContext,
+          conversationId: currentConversationId
         },
       });
       
@@ -394,58 +521,108 @@ const AIAssistant = () => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const startNewConversation = () => {
-    // Create a new conversation ID
-    const newConversationId = crypto.randomUUID();
+  const startNewConversation = async () => {
+    if (!user?.id) return;
     
-    const welcomeMessage = {
-      id: "welcome-message-new",
-      role: "assistant" as const,
-      content: t("aiAssistant.welcomeMessage", "Hello! I'm your G15 AI financial assistant. How can I help you with your finances today?"),
-      timestamp: new Date(),
-      visualData: [
-        {
-          type: "suggestion" as const,
-          data: [
-            t("aiAssistant.suggestions.general.0", "How do I create a budget?"),
-            t("aiAssistant.suggestions.general.1", "What are good saving strategies?"),
-            t("aiAssistant.suggestions.general.2", "How can I reduce my expenses?")
-          ]
-        }
-      ]
-    };
-    
-    // Update state
-    setMessages([welcomeMessage]);
-    setCurrentConversationId(newConversationId);
-    
-    // Create a new conversation object
-    const newConversation = {
-      id: newConversationId,
-      title: t("aiAssistant.newConversation", "New Conversation"),
-      lastMessageDate: new Date(),
-      messages: [welcomeMessage]
-    };
-    
-    // Add to conversations list
-    const updatedConversations = [newConversation, ...conversations];
-    setConversations(updatedConversations);
-    
-    // Save to localStorage
-    if (user?.id) {
-      localStorage.setItem(`g15_conversations_${user.id}`, JSON.stringify(updatedConversations));
+    try {
+      // Yeni bir konuşma oluştur
+      const { data: conversationData, error: conversationError } = await supabase
+        .from('ai_conversations')
+        .insert({
+          user_id: user.id,
+          title: t("aiAssistant.newConversation", "Yeni Konuşma")
+        })
+        .select()
+        .single();
+      
+      if (conversationError) throw conversationError;
+      
+      const conversationId = conversationData.id;
+      
+      // Hoş geldin mesajını oluştur
+      const welcomeMessageContent = t("aiAssistant.welcomeMessage", "Merhaba! Ben G15 AI finansal asistanınızım. Bugün finanslarınızla ilgili size nasıl yardımcı olabilirim?");
+      
+      // Visual data için JSON
+      const visualData: VisualData = {
+        type: "suggestion",
+        data: [
+          t("aiAssistant.suggestions.general.0", "Bütçe nasıl oluşturulur?"),
+          t("aiAssistant.suggestions.general.1", "İyi tasarruf stratejileri nelerdir?"),
+          t("aiAssistant.suggestions.general.2", "Harcamalarımı nasıl azaltabilirim?")
+        ]
+      };
+      
+      // Hoş geldin mesajını veritabanına ekle
+      const { data: messageData, error: messageError } = await supabase
+        .from('ai_messages')
+        .insert({
+          conversation_id: conversationId,
+          role: 'assistant',
+          content: welcomeMessageContent,
+          visual_data: [visualData]
+        })
+        .select()
+        .single();
+      
+      if (messageError) throw messageError;
+      
+      // State'i güncelle
+      const welcomeMessage: Message = {
+        id: messageData.id,
+        role: "assistant",
+        content: welcomeMessageContent,
+        timestamp: new Date(messageData.timestamp),
+        visualData: [visualData]
+      };
+      
+      setMessages([welcomeMessage]);
+      setCurrentConversationId(conversationId);
+      
+      // Konuşmalar listesini güncelle
+      const newConversation: ConversationHistory = {
+        id: conversationId,
+        title: t("aiAssistant.newConversation", "Yeni Konuşma"),
+        lastMessageDate: new Date(),
+        messages: [welcomeMessage]
+      };
+      
+      setConversations([newConversation, ...conversations]);
+      
+    } catch (error) {
+      console.error("Error creating new conversation:", error);
+      toast.error(t("error.creating_conversation", "Yeni konuşma oluşturulurken bir hata oluştu"));
     }
   };
   
-  const loadConversation = (conversationId: string) => {
-    const conversation = conversations.find(c => c.id === conversationId);
-    if (conversation) {
-      setMessages(conversation.messages.map(msg => ({
-        ...msg,
-        timestamp: new Date(msg.timestamp)
-      })));
+  const loadConversation = async (conversationId: string) => {
+    if (!user?.id) return;
+    
+    try {
+      // Konuşmanın mesajlarını getir
+      const { data: messagesData, error: messagesError } = await supabase
+        .rpc('get_ai_messages', { 
+          conversation_id_param: conversationId,
+          user_id_param: user.id
+        });
+      
+      if (messagesError) throw messagesError;
+      
+      // Mesajları doğru formata dönüştür
+      const formattedMessages = messagesData.map(msg => ({
+        id: msg.id,
+        role: convertToMessageRole(msg.role),
+        content: msg.content,
+        timestamp: new Date(msg.timestamp),
+        visualData: convertToVisualData(msg.visual_data)
+      }));
+      
+      setMessages(formattedMessages);
       setCurrentConversationId(conversationId);
       setShowConversationList(false);
+      
+    } catch (error) {
+      console.error("Error loading conversation:", error);
+      toast.error(t("error.loading_conversation", "Konuşma yüklenirken bir hata oluştu"));
     }
   };
 
@@ -657,7 +834,15 @@ const AIAssistant = () => {
                           </div>
                         ) : (
                           <>
-                            <p className="whitespace-pre-wrap">{message.content}</p>
+                            {message.role === "user" ? (
+                              <p className="whitespace-pre-wrap">{message.content}</p>
+                            ) : (
+                              <div className="prose prose-sm dark:prose-invert">
+                                <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+                                  {message.content}
+                                </ReactMarkdown>
+                              </div>
+                            )}
                             
                             {/* Render any visual components */}
                             {message.visualData && message.visualData.map((visual, i) => (

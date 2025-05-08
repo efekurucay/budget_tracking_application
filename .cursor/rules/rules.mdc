@@ -1,7 +1,7 @@
 ---
 description: 
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
 
 **You are an expert in TypeScript, Next.js, React, Supabase (PostgreSQL), Tailwind CSS, and Stripe. Your task is to help develop an advanced, AI-powered budget management application called "G15". You will follow these principles and guidelines carefully.**

@@ -17,12 +17,16 @@ import Transactions from "./pages/Transactions";
 import Reports from "./pages/Reports";
 import Groups from "./pages/Groups";
 import GroupDetail from "./pages/GroupDetail";
+import JoinGroup from "./pages/JoinGroup";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Notifications from "./pages/Notifications";
 import Upgrade from "./pages/Upgrade";
 import Index from "./pages/Index";
 import AIAssistant from "./pages/AIAssistant"; // Add AI Assistant page
+import AdminDashboard from "./pages/AdminDashboard";
+import Showcase from "./pages/Showcase"; // Import Showcase page
+import Badges from "./pages/Badges"; // Import Badges page
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -43,6 +47,25 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (!isAuthenticated) {
     return <Navigate to="/signin" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+// Admin route component - only for admin users
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, isLoading, user } = useAuth();
+
+  if (isLoading) {
+    return <div className="flex h-screen items-center justify-center">Loading...</div>;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/signin" replace />;
+  }
+
+  if (!user?.isAdmin) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
@@ -103,6 +126,14 @@ const AuthenticatedApp = () => (
       } 
     />
     <Route 
+      path="/groups/join" 
+      element={
+        <ProtectedRoute>
+          <JoinGroup />
+        </ProtectedRoute>
+      } 
+    />
+    <Route 
       path="/groups/:groupId" 
       element={
         <ProtectedRoute>
@@ -155,6 +186,30 @@ const AuthenticatedApp = () => (
       element={
         <ProtectedRoute>
           <Onboarding />
+        </ProtectedRoute>
+      } 
+    />
+    <Route 
+      path="/admin" 
+      element={
+        <AdminRoute>
+          <AdminDashboard />
+        </AdminRoute>
+      } 
+    />
+    <Route 
+      path="/showcase" 
+      element={
+        <ProtectedRoute>
+          <Showcase />
+        </ProtectedRoute>
+      } 
+    />
+    <Route 
+      path="/badges" 
+      element={
+        <ProtectedRoute>
+          <Badges />
         </ProtectedRoute>
       } 
     />

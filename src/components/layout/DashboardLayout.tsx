@@ -12,7 +12,8 @@ import {
   MessageSquare,
   Award,
   Bell,
-  User
+  User,
+  ShieldAlert
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -111,6 +112,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     },
   ] : [];
 
+  // Add admin items
+  const adminItems = user?.isAdmin ? [
+    {
+      icon: <ShieldAlert size={20} />,
+      label: t("admin.pageTitle", "Admin Dashboard"),
+      to: "/admin",
+    }
+  ] : [];
+
   const getInitials = () => {
     if (!user) return "G";
     return `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
@@ -125,6 +135,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
           {user?.isPro && (
             <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-g15-accent text-g15-accent-foreground">
               PRO
+            </span>
+          )}
+          {user?.isAdmin && (
+            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-600 text-white">
+              ADMIN
             </span>
           )}
         </div>
@@ -146,6 +161,23 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 PRO FEATURES
               </div>
               {premiumItems.map((item) => (
+                <NavItem
+                  key={item.to}
+                  icon={item.icon}
+                  label={item.label}
+                  to={item.to}
+                  active={location.pathname === item.to}
+                />
+              ))}
+            </>
+          )}
+          
+          {adminItems.length > 0 && (
+            <>
+              <div className="mt-6 mb-2 px-3 text-xs font-semibold text-gray-500">
+                ADMIN
+              </div>
+              {adminItems.map((item) => (
                 <NavItem
                   key={item.to}
                   icon={item.icon}

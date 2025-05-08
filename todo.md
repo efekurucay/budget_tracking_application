@@ -90,13 +90,34 @@
 - [x] Grup işlemleri için kategoriler ekle
 - [x] GroupDetail.tsx dosyasındaki hook kullanım hatalarını düzelt
 - [x] React hook ihlallerini gider ve performans sorunlarını çöz
-- [x] Kod tabanı indekslendi ve analiz edildi
+- [x] Kod tabanı indekslendi ve analiz edildi [05.11.2023]
 - [x] AuthContext.tsx içindeki sonsuz yükleme sorunlarını çöz
 - [x] Dashboard.tsx içindeki çeviri eksikliklerini düzelt
 - [x] Goals.tsx ve AIAssistant.tsx bileşenlerine çeviri desteği ekle
+- [x] Onboarding veri kalıcılığını tamamla (src/pages/Onboarding.tsx)
+- [x] AI asistanı konuşma geçmişini localStorage yerine veritabanına kaydetme
+- [x] Grup işlemlerini kategorilere göre filtreleme ekle
+- [x] Grup işlemlerini tarihe göre filtreleme ekle
+- [x] Kullanıcılar arasında hesap uzlaştırma sistemi ekle
+- [x] Grup davet sistemi kurulumu
+- [x] Admin dashboard sistemi ekleme
+- [x] Pro üyelik onay sistemi kurlumu
+- [x] Showcase sayfası ve API entegrasyonu ekleme
+- [x] Rozet sistemi ve otomatik rozet kazanma altyapısı oluşturma
+- [x] Rozet kataloğu sayfası ekleme
+- [x] Profil sayfasına rozet görüntüleme bölümü ekleme
 
 ## Yapılacaklar
 
-- [ ] Grup işlemlerini kategorilere göre filtreleme ekle
-- [ ] Grup işlemlerini tarihe göre filtreleme ekle
-- [ ] Kullanıcılar arasında hesap uzlaştırma sistemi ekle
+- [ ] Yükseltme (Upgrade) sayfasındaki simülasyonu gerçek entegrasyon ile değiştirme
+- [x] AI Asistan sorunlarını çözme
+  - [x] Supabase Edge Function'da Gemini API kotası aşılma hatasını ele alma
+  - [x] Edge Function'ı kota hatası durumunda kullanıcı dostu yanıt verecek şekilde güncelleme
+  - [x] Geçici çözüm olarak sabit bir mesaj döndürme
+- [x] Rozet sistemindeki SQL hatalarını düzeltme
+- [x] AI Asistana mesaj hafızası ekleyerek sohbetlerin bağlamını korumasını sağlama
+
+## İleriki Adımlar
+- [x] AI Asistan için yeni Gemini API anahtarı edinme veya alternatif bir AI servisi kullanma (OpenAI/Claude)
+- [x] Edge Function'ı yeni API ile güncelleme
+- [x] AI Asistan yanıtları için Markdown desteği ekleme

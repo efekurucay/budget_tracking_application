@@ -4,12 +4,13 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, X, Zap, Award, MessageSquare, ChevronRight, Loader2 } from "lucide-react";
+import { Check, X, Zap, Award, MessageSquare, ChevronRight, Loader2, HourglassIcon, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useTranslation } from "react-i18next";
 
 const Upgrade = () => {
   const { user } = useAuth();
@@ -19,6 +20,11 @@ const Upgrade = () => {
   const [cardName, setCardName] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [pointsToUse, setPointsToUse] = useState(0);
+  const [isUpgradeRequested, setIsUpgradeRequested] = useState(false);
+  const [cardMessage, setCardMessage] = useState('');
+  const [cardType, setCardType] = useState('Credit Card');
+  
+  const { t } = useTranslation();
   
   // Fetch user badges and points
   const { data: userBadges } = useQuery({
@@ -46,55 +52,58 @@ const Upgrade = () => {
   const discount = (pointsToUse * pointValue).toFixed(2);
   const finalPrice = Math.max(0, regularPrice - Number(discount)).toFixed(2);
   
-  // Upgrade mutation
-  const upgradeMutation = useMutation({
+  // Upgrade request function
+  const requestUpgradeMutation = useMutation({
     mutationFn: async () => {
-      if (!user?.id) throw new Error("User not authenticated");
+      if (!user?.id) throw new Error("User ID is required");
+
+      const notes = cardMessage || `Requested via payment form using ${cardType}.`;
       
-      // 1. Update user profile to Pro
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({ 
-          is_pro: true,
-          points: Math.max(0, totalPoints - pointsToUse)
-        })
-        .eq("id", user.id);
+      // Call the RPC function
+      const { data, error } = await supabase.rpc('request_pro_upgrade', {
+        p_notes: notes
+      });
       
-      if (profileError) throw profileError;
+      if (error) throw error;
       
-      // 2. Create subscription record
-      const expiryDate = new Date();
-      expiryDate.setMonth(expiryDate.getMonth() + 1);
+      if (!data.success) {
+        throw new Error(data.message);
+      }
       
-      const { error: subscriptionError } = await supabase
-        .from("subscriptions")
-        .insert([{
-          user_id: user.id,
-          status: "active",
-          expires_at: expiryDate.toISOString(),
-          points_used: pointsToUse
-        }]);
-      
-      if (subscriptionError) throw subscriptionError;
-      
-      return true;
+      return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
-      toast.success("Congratulations! You are now a Pro user!");
+      setIsProcessing(false);
+      setIsUpgradeRequested(true);
       setPaymentDialog(false);
-      
-      // Force reload to update UI with new Pro status
-      setTimeout(() => {
-        window.location.href = '/ai-assistant';
-      }, 1500);
+      toast.success(t("upgrade.requestSuccess", "Pro üyelik talebiniz alındı. İncelendikten sonra size bildirim yapılacaktır."));
     },
-    onError: (error) => {
-      console.error("Error upgrading to Pro:", error);
-      toast.error("Failed to upgrade: " + error.message);
+    onError: (error: any) => {
+      setIsProcessing(false);
+      toast.error(`${t("upgrade.requestFailed", "Pro üyelik talebi başarısız")}: ${error.message}`);
     }
   });
   
+  // Check if user has a pending upgrade request
+  const { data: hasPendingRequest, isLoading: isCheckingRequest } = useQuery({
+    queryKey: ["pending-upgrade-request", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return false;
+      
+      const { data, error } = await supabase.rpc('check_pending_upgrade_request', {
+        p_user_id: user.id
+      });
+      
+      if (error) {
+        console.error("Error checking upgrade request:", error);
+        return false;
+      }
+      
+      return data || false;
+    },
+    enabled: !!user?.id && !user.isPro,
+  });
+
   const planFeatures = {
     free: [
       "Financial goals tracking",
@@ -119,16 +128,14 @@ const Upgrade = () => {
   
   const processPayment = async () => {
     if (!cardNumber || !cardName) {
-      toast.error("Please fill in all payment details");
+      toast.error(t("upgrade.fillPaymentDetails", "Lütfen tüm ödeme bilgilerini doldurun"));
       return;
     }
     
     setIsProcessing(true);
     
-    // Simulate payment processing
-    setTimeout(() => {
-      upgradeMutation.mutate();
-    }, 2000);
+    // Request upgrade instead of directly upgrading
+    requestUpgradeMutation.mutate();
   };
   
   // If user is already Pro
@@ -163,6 +170,82 @@ const Upgrade = () => {
             <Button onClick={() => window.location.href = '/ai-assistant'}>
               <MessageSquare className="mr-2 h-4 w-4" />
               Try the AI Assistant
+            </Button>
+          </CardFooter>
+        </Card>
+      </DashboardLayout>
+    );
+  }
+
+  // If user has a pending upgrade request
+  if (hasPendingRequest) {
+    return (
+      <DashboardLayout>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold">{t("upgrade.proRequestTitle", "Pro Üyelik Talebi")}</h1>
+          <p className="text-gray-600">{t("upgrade.proRequestSubtitle", "Talebiniz inceleniyor")}</p>
+        </div>
+        
+        <Card className="max-w-md mx-auto border-2 border-yellow-400">
+          <CardHeader className="bg-yellow-50 text-center">
+            <div className="flex items-center justify-center">
+              <HourglassIcon className="h-6 w-6 text-yellow-500 mr-2" />
+              <CardTitle>{t("upgrade.pendingRequest", "Bekleyen Pro Üyelik Talebi")}</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="py-6">
+            <div className="flex flex-col items-center space-y-4">
+              <div className="h-24 w-24 rounded-full bg-yellow-100 flex items-center justify-center">
+                <HourglassIcon className="h-12 w-12 text-yellow-500" />
+              </div>
+              <h3 className="text-xl font-semibold">{t("upgrade.waitingApproval", "Onay Bekleniyor")}</h3>
+              <p className="text-center text-gray-600">
+                {t("upgrade.approvalProcess", "Pro üyelik talebiniz alındı ve şu anda inceleniyor. Onaylandığında size bildirim gönderilecektir.")}
+              </p>
+            </div>
+          </CardContent>
+          <CardFooter className="flex justify-center">
+            <Button variant="outline" onClick={() => window.location.href = '/dashboard'}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              {t("common.backToDashboard", "Dashboard'a Dön")}
+            </Button>
+          </CardFooter>
+        </Card>
+      </DashboardLayout>
+    );
+  }
+  
+  // If upgrade was just requested successfully (temporary state until page reload)
+  if (isUpgradeRequested) {
+    return (
+      <DashboardLayout>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold">{t("upgrade.proRequestTitle", "Pro Üyelik Talebi")}</h1>
+          <p className="text-gray-600">{t("upgrade.proRequestSubtitle", "Talebiniz alındı")}</p>
+        </div>
+        
+        <Card className="max-w-md mx-auto border-2 border-green-400">
+          <CardHeader className="bg-green-50 text-center">
+            <div className="flex items-center justify-center">
+              <CheckCircle2 className="h-6 w-6 text-green-500 mr-2" />
+              <CardTitle>{t("upgrade.requestReceived", "Talebiniz Alındı")}</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="py-6">
+            <div className="flex flex-col items-center space-y-4">
+              <div className="h-24 w-24 rounded-full bg-green-100 flex items-center justify-center">
+                <CheckCircle2 className="h-12 w-12 text-green-500" />
+              </div>
+              <h3 className="text-xl font-semibold">{t("upgrade.thankYou", "Teşekkürler!")}</h3>
+              <p className="text-center text-gray-600">
+                {t("upgrade.requestConfirmation", "Pro üyelik talebiniz başarıyla alınmıştır. Talebiniz incelendikten sonra size bildirim yapılacaktır.")}
+              </p>
+            </div>
+          </CardContent>
+          <CardFooter className="flex justify-center">
+            <Button onClick={() => window.location.href = '/dashboard'}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              {t("common.backToDashboard", "Dashboard'a Dön")}
             </Button>
           </CardFooter>
         </Card>
