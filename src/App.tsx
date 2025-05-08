@@ -94,24 +94,27 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Authentication wrapper component
 const AuthenticatedApp = () => {
-  const { isAuthenticated, isLoading } = useAuth();
-  const navigate = useNavigate();
-
-  // Sayfa yenilendiğinde oturum durumuna göre yönlendirme
-  useEffect(() => {
-    // Eğer oturum yükleme tamamlandıysa ve kullanıcı oturum açmışsa
-    if (!isLoading && isAuthenticated) {
-      // Eğer giriş sayfası veya ana sayfa ise dashboard'a yönlendir
-      const path = window.location.hash; // /#/path şeklinde
-      if (path === '#/' || path === '#/signin' || path === '#/signup') {
-        navigate('/dashboard');
+  const { isAuthenticated } = useAuth();
+  
+  // Ana index yönlendirme bileşeni
+  const IndexRouter = () => {
+    const navigate = useNavigate();
+    const { isAuthenticated, isLoading } = useAuth();
+    
+    useEffect(() => {
+      // Sayfa yüklendiğinde ve giriş yapılmışsa dashboard'a yönlendir
+      if (!isLoading && isAuthenticated) {
+        console.log("Index loaded, user authenticated, redirecting to dashboard");
+        navigate("/dashboard", { replace: true });
       }
-    }
-  }, [isLoading, isAuthenticated, navigate]);
+    }, [isAuthenticated, isLoading, navigate]);
+    
+    return <Index />;
+  };
 
   return (
     <Routes>
-      <Route path="/" element={<Index />} />
+      <Route path="/" element={<IndexRouter />} />
       <Route path="/signin" element={<SignIn />} />
       <Route path="/signup" element={<SignUp />} />
       <Route 

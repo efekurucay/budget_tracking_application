@@ -17,14 +17,25 @@ const SignIn = () => {
   const [error, setError] = useState<string | null>(null);
   const [loginTimeout, setLoginTimeout] = useState<NodeJS.Timeout | null>(null);
 
+  // İlk render sırasında ve isAuthenticated değiştiğinde kontrol et
   useEffect(() => {
     console.log("SignIn component loading, isAuthenticated:", isAuthenticated);
-    // If already authenticated, redirect to dashboard
-    if (isAuthenticated) {
+    
+    // Eğer zaten giriş yapılmışsa hemen yönlendir
+    if (isAuthenticated && !isLoading) {
       console.log("User is already authenticated, redirecting to dashboard");
-      navigate("/dashboard");
+      navigate("/dashboard", { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, isLoading, navigate]);
+
+  // Login başarılı olduğunda da kontrol et
+  useEffect(() => {
+    // Eğer login işlemi bitmiş ve giriş yapılmışsa dashboard'a yönlendir
+    if (isAuthenticated && !signingIn && !isLoading) {
+      console.log("Login completed, isAuthenticated changed to true, redirecting...");
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isAuthenticated, signingIn, isLoading, navigate]);
 
   // Timeout temizleme için useEffect
   useEffect(() => {
@@ -65,6 +76,12 @@ const SignIn = () => {
       if (loginTimeout) {
         clearTimeout(loginTimeout);
       }
+      
+      // Login işlemi sonrası tekrar bir yönlendirme deneyebiliriz
+      if (!isLoading) {
+        console.log("Login successful, attempting direct navigation");
+        navigate("/dashboard", { replace: true });
+      }
     } catch (error: any) {
       // Hata durumunda timeout'u temizle
       if (loginTimeout) {
@@ -74,7 +91,6 @@ const SignIn = () => {
       console.error("Login error in component:", error);
       setError(error.message || "Failed to sign in");
     } finally {
-      // finally bloğunda timeout'u temizlemeye gerek yok çünkü her iki durumda da temizleniyor
       setSigningIn(false);
     }
   };

@@ -193,11 +193,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // Diğer tüm olaylar için (SIGNED_IN, SIGNED_OUT, USER_UPDATED vb.) state'i güncelle.
         // Burada tekrar isLoading=true yapmaya gerek yok, direkt güncelleme yeterli.
         await updateUserState(session?.user || null); // Bu fonksiyon isLoading'i false yapar
-        
-        // SIGNED_IN olayı için dashboard'a yönlendirme yap
-        if (event === 'SIGNED_IN') {
-          navigate('/dashboard');
-        }
       }
     );
 
@@ -215,21 +210,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     console.log(`${logPrefix} Giriş deneniyor:`, email);
     try {
       // Supabase ile giriş yapmayı dene
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       // Hata varsa fırlat
       if (error) throw error;
-      // Başarı mesajı gösterilebilir, state güncellemesi onAuthStateChange ile olacak
+      
+      // Başarı mesajı göster
       toast.success("Login successful! Redirecting...");
       
-      // Kullanıcıyı direkt olarak dashboard'a yönlendir
-      navigate("/dashboard");
+      // Oturum oturumu doğrudan güncelle ve profili al, navigasyon için beklemeden yönlendir
+      if (data.user) {
+        const profile = await fetchUserProfile(data.user.id, data.user.email || "");
+        setUser(profile);
+        // Direkt yönlendirme 
+        console.log(`${logPrefix} Login başarılı, dashboard'a yönlendiriliyor...`);
+        navigate("/dashboard", { replace: true });
+      }
     } catch (error: any) {
       // Hata olursa logla ve toast mesajı göster
       toast.error(`Login failed: ${error.message}`);
       console.error(`${logPrefix} Login hatası:`, error);
       throw error; // Hatayı çağıran yere (SignIn component'i) geri fırlat
     }
-    // Not: Başarılı giriş sonrası isLoading'i onAuthStateChange yönetecek.
   };
 
   // Kayıt fonksiyonu
@@ -285,19 +286,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const logPrefix = `[${new Date().toISOString()}] AuthContext:`;
     console.log(`${logPrefix} Kullanıcı çıkış yapıyor.`);
     try {
+      // Önce local state'i temizle (anında UI güncelleme için)
+      setUser(null);
+      localStorage.removeItem('g15-user-profile');
+      
       // Supabase'den çıkış yap
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error; // Hata varsa fırlat
-      // setUser(null) onAuthStateChange tarafından yapılacak ama anında UI tepkisi için burada da yapılabilir
-      // setUser(null);
+      const { error } = await supabase.auth.signOut({ scope: 'global' });
+      if (error) throw error;
+      
       toast.info("You've been logged out.");
-      navigate("/signin"); // Giriş sayfasına yönlendir
+      
+      // localStorage'a kullanıcı bilgisini sildiğimizden emin olalım
+      localStorage.clear();
+      
+      // Çıkış yaptıktan sonra sayfayı yenile ve giriş sayfasına yönlendir
+      window.location.href = window.location.origin + '/#/signin';
     } catch (error: any) {
       // Hata olursa logla ve toast mesajı göster
       console.error(`${logPrefix} Logout hatası:`, error);
       toast.error(`Logout failed: ${error.message}`);
+      
+      // Hata olsa bile kullanıcıyı çıkış yapmış olarak işaretle ve yönlendir
+      window.location.href = window.location.origin + '/#/signin';
     }
-    // Not: Başarılı/başarısız çıkış sonrası isLoading'i onAuthStateChange yönetecek.
   };
 
   // Kullanıcı profilini manuel olarak yenileme fonksiyonu
