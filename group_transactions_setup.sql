@@ -24,6 +24,15 @@ CREATE TABLE IF NOT EXISTS public.group_transaction_members (
 ALTER TABLE public.group_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.group_transaction_members ENABLE ROW LEVEL SECURITY;
 
+-- Var olan politikaları temizle
+DROP POLICY IF EXISTS "Grup uyeleri grup islemlerini gorebilir" ON public.group_transactions;
+DROP POLICY IF EXISTS "Grup uyeleri islem katilimcilarini gorebilir" ON public.group_transaction_members;
+DROP POLICY IF EXISTS "Grup uyeleri islem ekleyebilir" ON public.group_transactions;
+DROP POLICY IF EXISTS "Grup uyeleri islem katilimcilarini ekleyebilir" ON public.group_transaction_members;
+DROP POLICY IF EXISTS "Grup uyeleri kendi islemlerini guncelleyebilir" ON public.group_transactions;
+DROP POLICY IF EXISTS "Kullanicilar kendi islemlerini veya sahipler tum islemleri silebilir" ON public.group_transactions;
+DROP POLICY IF EXISTS "İşlem sahibi veya sahipler katilimcilarini silebilir" ON public.group_transaction_members;
+
 -- Grup uyeleri kendi gruplarinin islemlerini gorebilir
 CREATE POLICY "Grup uyeleri grup islemlerini gorebilir" 
   ON public.group_transactions FOR SELECT
@@ -105,6 +114,11 @@ CREATE POLICY "İşlem sahibi veya sahipler katilimcilarini silebilir"
   );
 
 -- RPC Fonksiyonlari
+-- Var olan fonksiyonları temizle
+DROP FUNCTION IF EXISTS public.get_group_transactions(UUID);
+DROP FUNCTION IF EXISTS public.get_transaction_members(UUID);
+DROP FUNCTION IF EXISTS public.add_group_transaction(UUID, UUID, NUMERIC, TEXT, DATE, BOOLEAN, TEXT, UUID[]);
+
 -- Grup islemlerini getiren fonksiyon
 CREATE OR REPLACE FUNCTION public.get_group_transactions(group_id_param UUID)
 RETURNS SETOF public.group_transactions
