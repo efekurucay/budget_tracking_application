@@ -93,150 +93,167 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 // Authentication wrapper component
-const AuthenticatedApp = () => (
-  <Routes>
-    <Route path="/" element={<Index />} />
-    <Route path="/signin" element={<SignIn />} />
-    <Route path="/signup" element={<SignUp />} />
-    <Route 
-      path="/dashboard" 
-      element={
-        <ProtectedRoute>
-          <Dashboard />
-        </ProtectedRoute>
-      } 
-    />
-    <Route 
-      path="/goals" 
-      element={
-        <ProtectedRoute>
-          <Goals />
-        </ProtectedRoute>
-      } 
-    />
-    <Route 
-      path="/budget" 
-      element={
-        <ProtectedRoute>
-          <Budget />
-        </ProtectedRoute>
-      } 
-    />
-    <Route 
-      path="/transactions" 
-      element={
-        <ProtectedRoute>
-          <Transactions />
-        </ProtectedRoute>
-      } 
-    />
-    <Route 
-      path="/reports" 
-      element={
-        <ProtectedRoute>
-          <Reports />
-        </ProtectedRoute>
-      } 
-    />
-    <Route 
-      path="/groups" 
-      element={
-        <ProtectedRoute>
-          <Groups />
-        </ProtectedRoute>
-      } 
-    />
-    <Route 
-      path="/groups/join" 
-      element={
-        <ProtectedRoute>
-          <JoinGroup />
-        </ProtectedRoute>
-      } 
-    />
-    <Route 
-      path="/groups/:groupId" 
-      element={
-        <ProtectedRoute>
-          <GroupDetail />
-        </ProtectedRoute>
-      } 
-    />
-    <Route 
-      path="/ai-assistant" 
-      element={
-        <ProtectedRoute>
-          <AIAssistant />
-        </ProtectedRoute>
-      } 
-    />
-    <Route 
-      path="/profile" 
-      element={
-        <ProtectedRoute>
-          <Profile />
-        </ProtectedRoute>
-      } 
-    />
-    <Route 
-      path="/settings" 
-      element={
-        <ProtectedRoute>
-          <Settings />
-        </ProtectedRoute>
-      } 
-    />
-    <Route 
-      path="/notifications" 
-      element={
-        <ProtectedRoute>
-          <Notifications />
-        </ProtectedRoute>
-      } 
-    />
-    <Route 
-      path="/upgrade" 
-      element={
-        <ProtectedRoute>
-          <Upgrade />
-        </ProtectedRoute>
-      } 
-    />
-    <Route 
-      path="/onboarding" 
-      element={
-        <ProtectedRoute>
-          <Onboarding />
-        </ProtectedRoute>
-      } 
-    />
-    <Route 
-      path="/admin" 
-      element={
-        <AdminRoute>
-          <AdminDashboard />
-        </AdminRoute>
-      } 
-    />
-    <Route 
-      path="/showcase" 
-      element={
-        <ProtectedRoute>
-          <Showcase />
-        </ProtectedRoute>
-      } 
-    />
-    <Route 
-      path="/badges" 
-      element={
-        <ProtectedRoute>
-          <Badges />
-        </ProtectedRoute>
-      } 
-    />
-    <Route path="*" element={<NotFound />} />
-  </Routes>
-);
+const AuthenticatedApp = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  // Sayfa yenilendiğinde oturum durumuna göre yönlendirme
+  useEffect(() => {
+    // Eğer oturum yükleme tamamlandıysa ve kullanıcı oturum açmışsa
+    if (!isLoading && isAuthenticated) {
+      // Eğer giriş sayfası veya ana sayfa ise dashboard'a yönlendir
+      const path = window.location.hash; // /#/path şeklinde
+      if (path === '#/' || path === '#/signin' || path === '#/signup') {
+        navigate('/dashboard');
+      }
+    }
+  }, [isLoading, isAuthenticated, navigate]);
+
+  return (
+    <Routes>
+      <Route path="/" element={<Index />} />
+      <Route path="/signin" element={<SignIn />} />
+      <Route path="/signup" element={<SignUp />} />
+      <Route 
+        path="/dashboard" 
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/goals" 
+        element={
+          <ProtectedRoute>
+            <Goals />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/budget" 
+        element={
+          <ProtectedRoute>
+            <Budget />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/transactions" 
+        element={
+          <ProtectedRoute>
+            <Transactions />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/reports" 
+        element={
+          <ProtectedRoute>
+            <Reports />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/groups" 
+        element={
+          <ProtectedRoute>
+            <Groups />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/groups/join" 
+        element={
+          <ProtectedRoute>
+            <JoinGroup />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/groups/:groupId" 
+        element={
+          <ProtectedRoute>
+            <GroupDetail />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/ai-assistant" 
+        element={
+          <ProtectedRoute>
+            <AIAssistant />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/profile" 
+        element={
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/settings" 
+        element={
+          <ProtectedRoute>
+            <Settings />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/notifications" 
+        element={
+          <ProtectedRoute>
+            <Notifications />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/upgrade" 
+        element={
+          <ProtectedRoute>
+            <Upgrade />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/onboarding" 
+        element={
+          <ProtectedRoute>
+            <Onboarding />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/admin" 
+        element={
+          <AdminRoute>
+            <AdminDashboard />
+          </AdminRoute>
+        } 
+      />
+      <Route 
+        path="/showcase" 
+        element={
+          <ProtectedRoute>
+            <Showcase />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/badges" 
+        element={
+          <ProtectedRoute>
+            <Badges />
+          </ProtectedRoute>
+        } 
+      />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

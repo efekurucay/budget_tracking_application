@@ -193,6 +193,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // Diğer tüm olaylar için (SIGNED_IN, SIGNED_OUT, USER_UPDATED vb.) state'i güncelle.
         // Burada tekrar isLoading=true yapmaya gerek yok, direkt güncelleme yeterli.
         await updateUserState(session?.user || null); // Bu fonksiyon isLoading'i false yapar
+        
+        // SIGNED_IN olayı için dashboard'a yönlendirme yap
+        if (event === 'SIGNED_IN') {
+          navigate('/dashboard');
+        }
       }
     );
 
@@ -215,6 +220,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (error) throw error;
       // Başarı mesajı gösterilebilir, state güncellemesi onAuthStateChange ile olacak
       toast.success("Login successful! Redirecting...");
+      
+      // Kullanıcıyı direkt olarak dashboard'a yönlendir
+      navigate("/dashboard");
     } catch (error: any) {
       // Hata olursa logla ve toast mesajı göster
       toast.error(`Login failed: ${error.message}`);
