@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -17,6 +16,7 @@ import Budget from "./pages/Budget";
 import Transactions from "./pages/Transactions";
 import Reports from "./pages/Reports";
 import Groups from "./pages/Groups";
+import GroupDetail from "./pages/GroupDetail";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Notifications from "./pages/Notifications";
@@ -99,6 +99,14 @@ const AuthenticatedApp = () => (
       element={
         <ProtectedRoute>
           <Groups />
+        </ProtectedRoute>
+      } 
+    />
+    <Route 
+      path="/groups/:groupId" 
+      element={
+        <ProtectedRoute>
+          <GroupDetail />
         </ProtectedRoute>
       } 
     />

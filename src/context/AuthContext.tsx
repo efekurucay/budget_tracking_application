@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "@/components/ui/sonner";
+import { toast } from "@/components/ui/sonner"; // shadcn/ui sonner varsayılıyor
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
+// Kullanıcı profilinin arayüzü (interface)
 interface UserProfile {
   id: string;
   email: string;
@@ -14,85 +15,85 @@ interface UserProfile {
   isAdmin: boolean;
 }
 
+// AuthContext'in tip tanımı
 interface AuthContextType {
-  user: UserProfile | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (firstName: string, lastName: string, email: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
+  user: UserProfile | null;          // Oturum açmış kullanıcının profil bilgileri veya null
+  isAuthenticated: boolean;         // Kullanıcının oturum açıp açmadığı bilgisi
+  isLoading: boolean;               // Kimlik doğrulama durumunun yüklenip yüklenmediği
+  login: (email: string, password: string) => Promise<void>; // Giriş fonksiyonu
+  signup: (firstName: string, lastName: string, email: string, password: string) => Promise<void>; // Kayıt fonksiyonu
+  logout: () => Promise<void>;        // Çıkış fonksiyonu
+  refreshUserProfile: () => Promise<void>; // Kullanıcı profilini manuel yenileme fonksiyonu
 }
 
+// AuthContext'i oluştur
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// LocalStorage anahtar sabiti
-const AUTH_STORAGE_KEY = 'g15_user';
-
+// Context'i kullanmak için özel bir hook (useAuth)
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error("useAuth must be used within an AuthProvider"); // Provider dışında kullanılırsa hata fırlat
   }
   return context;
 };
 
+// Ana AuthProvider bileşeni
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const navigate = useNavigate();
+  const [user, setUser] = useState<UserProfile | null>(null); // Kullanıcı state'i, başlangıçta null
+  const [isLoading, setIsLoading] = useState(true);          // Yükleme state'i, başlangıçta true
+  const navigate = useNavigate();                           // Yönlendirme için hook
 
-  // Save user to localStorage when user changes
-  useEffect(() => {
-    if (user) {
-      try {
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
-        console.log("User saved to localStorage", new Date().toISOString());
-      } catch (e) {
-        console.error("Failed to save user to localStorage:", e);
-      }
-    }
-  }, [user]);
-
-  // Load user from localStorage on init
-  useEffect(() => {
-    const loadStoredUser = () => {
-      try {
-        const storedUser = localStorage.getItem(AUTH_STORAGE_KEY);
-        if (storedUser && !user) {
-          console.log("Loading user from localStorage", new Date().toISOString());
-          const parsedUser = JSON.parse(storedUser);
-          setUser(parsedUser);
-        }
-      } catch (e) {
-        console.error("Failed to parse stored user:", e);
-        localStorage.removeItem(AUTH_STORAGE_KEY);
-      }
-    };
-    
-    // Sayfa ilk yüklendiğinde localStorage'dan kullanıcıyı yükle
-    loadStoredUser();
-  }, []);
-
-  // Fetch user profile data from Supabase
-  const fetchUserProfile = async (userId: string) => {
-    console.log("Fetching user profile for:", userId);
+  // Kullanıcı profilini Supabase'den çekmek için asenkron fonksiyon
+  const fetchUserProfile = async (userId: string, userEmail: string): Promise<UserProfile | null> => {
+    console.log(`[${new Date().toISOString()}] AuthContext: Profil çekiliyor:`, userId);
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("*")
+        .select("id, first_name, last_name, is_pro, points, is_admin")
         .eq("id", userId)
         .single();
 
       if (error) {
-        console.error("Error fetching profile:", error);
-        return null;
+        if (error.code === 'PGRST116') { // Resource not found (Profile doesn't exist yet)
+          console.warn(`[${new Date().toISOString()}] AuthContext: Profil bulunamadı (PGRST116), muhtemelen yeni kullanıcı:`, userId);
+          
+          // Yeni profil oluşturma girişimi
+          try {
+            const { error: insertError } = await supabase
+              .from("profiles")
+              .insert([{ id: userId, first_name: "", last_name: "" }]);
+            
+            if (insertError) {
+              console.error("AuthContext: Yeni profil oluşturma hatası:", insertError);
+            } else {
+              console.log("AuthContext: Yeni profil oluşturuldu:", userId);
+            }
+          } catch (insertErr) {
+            console.error("AuthContext: Profil oluşturma işlemi sırasında hata:", insertErr);
+          }
+          
+          // Yeni kullanıcı için varsayılan profil döndür
+          return { 
+            id: userId, 
+            email: userEmail, 
+            firstName: "", 
+            lastName: "", 
+            isPro: false, 
+            points: 0, 
+            isAdmin: false 
+          };
+        } else {
+          console.error("AuthContext: Profil çekme hatası:", error);
+          throw error;
+        }
       }
 
       if (data) {
-        console.log("Profile data retrieved successfully");
+        console.log("AuthContext: Profil verileri başarıyla alındı");
         return {
           id: data.id,
-          email: "", // Will be set from auth user
+          email: userEmail,
           firstName: data.first_name || "",
           lastName: data.last_name || "",
           isPro: data.is_pro || false,
@@ -100,270 +101,166 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           isAdmin: data.is_admin || false,
         };
       }
-      console.log("No profile data found");
-      return null;
+      console.warn("AuthContext: Profil verisi bulunamadı ama hata da yok");
+      return { 
+        id: userId, 
+        email: userEmail, 
+        firstName: "", 
+        lastName: "", 
+        isPro: false, 
+        points: 0, 
+        isAdmin: false 
+      };
     } catch (error) {
-      console.error("Exception in fetchUserProfile:", error);
-      return null;
+      console.error("AuthContext: Profil çekme işleminde beklenmeyen hata:", error);
+      // Hata durumunda varsayılan profil döndür - bu, uygulamanın çalışmaya devam etmesini sağlar
+      return { 
+        id: userId, 
+        email: userEmail, 
+        firstName: "", 
+        lastName: "", 
+        isPro: false, 
+        points: 0, 
+        isAdmin: false 
+      };
     }
   };
 
-  // Setup auth state listener
+  // Auth state listener and initial check
   useEffect(() => {
-    console.log("Setting up auth state listener");
+    console.log("AuthContext: Setting up listener and initial session check");
+    let isMounted = true; // Bileşen bağlantısını takip etmek için
+    setIsLoading(true); // Ensure loading state is true initially
+
+    // Initial session check
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (!isMounted) return; // Component unmounted, don't update state
+      
+      if (error) {
+        console.error("AuthContext: Error getting initial session:", error);
+        setIsLoading(false); // End loading even if there's an error
+        return;
+      }
+      
+      console.log("AuthContext: Initial session check complete", session ? "Session exists" : "No session");
+      
+      if (session?.user) {
+        loadUserSession(session.user);
+        // loadUserSession will set isLoading to false in finally block
+      } else {
+        setUser(null);
+        setIsLoading(false);
+      }
+    }).catch(err => {
+      if (!isMounted) return;
+      console.error("AuthContext: Unexpected error in getSession:", err);
+      setIsLoading(false); // End loading on unexpected error
+    });
+
+    // Auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log(`Auth state changed: ${event}`, new Date().toISOString());
-        setIsLoading(true);
+        console.log(`AuthContext: Auth state changed: ${event}`, session ? "Session exists" : "No session");
         
-        if (session?.user) {
-          console.log("Session user found, fetching profile");
-          try {
-            const profile = await fetchUserProfile(session.user.id);
-            
-            if (profile) {
-              console.log("Setting user with profile data");
-              setUser({
-                ...profile,
-                email: session.user.email || "",
-              });
-            } else {
-              // If profile fetch failed, at least set basic user info
-              console.log("Profile fetch failed, setting basic user info");
-              setUser({
-                id: session.user.id,
-                email: session.user.email || "",
-                firstName: "",
-                lastName: "",
-                isPro: false,
-                points: 0,
-                isAdmin: false
-              });
-            }
-          } catch (err) {
-            console.error("Error in auth state change handler:", err);
-            // Yine de kullanıcıyı ayarlayalım
-            setUser({
-              id: session.user.id,
-              email: session.user.email || "",
-              firstName: "",
-              lastName: "",
-              isPro: false,
-              points: 0,
-              isAdmin: false
-            });
-          }
-        } else {
-          if (event === 'SIGNED_OUT') {
-            console.log("User signed out, clearing data");
+        if (!isMounted) return; // Bileşen bağlı değilse işleme devam etme
+        
+        // Handle different auth events
+        if (['SIGNED_IN', 'USER_UPDATED', 'TOKEN_REFRESHED'].includes(event)) {
+          setIsLoading(true); // Kimlik durumu değiştiğinde yüklemeyi başlat
+          if (session?.user) {
+            await loadUserSession(session.user);
+            // loadUserSession will set isLoading to false in finally block
+          } else {
+            // Normalde buraya ulaşılmamalı, ama güvenlik için ekledik
             setUser(null);
-            localStorage.removeItem(AUTH_STORAGE_KEY);
+            setIsLoading(false);
           }
+        } else if (event === 'SIGNED_OUT') {
+          console.log("AuthContext: SIGNED_OUT event, clearing user");
+          setUser(null);
+          setIsLoading(false);
+        } else if (event === 'INITIAL_SESSION') {
+          // Bu durumda bir şey yapma, getSession zaten işlemi gerçekleştirdi
+          console.log("AuthContext: INITIAL_SESSION event, already handled by getSession");
         }
-        
-        setIsLoading(false);
       }
     );
 
-    // Check current session
-    const initAuth = async () => {
-      console.log("Initializing auth...", new Date().toISOString());
-      setIsLoading(true);
-      try {
-        // Attempt to get session
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          throw error;
-        }
-        
-        console.log("Session check:", session ? "Active session found" : "No active session");
-        
-        if (session?.user) {
-          try {
-            console.log("Fetching profile for authenticated user");
-            const profile = await fetchUserProfile(session.user.id);
-            
-            if (profile) {
-              console.log("Setting user with fetched profile");
-              setUser({
-                ...profile,
-                email: session.user.email || "",
-              });
-            } else {
-              // If profile fetch failed, set basic user info
-              console.log("Profile fetch failed, setting basic user info");
-              setUser({
-                id: session.user.id,
-                email: session.user.email || "",
-                firstName: "",
-                lastName: "",
-                isPro: false,
-                points: 0,
-                isAdmin: false
-              });
-            }
-          } catch (profileError) {
-            console.error("Error fetching profile during init:", profileError);
-            // Regardless of profile error, set basic user from session
-            setUser({
-              id: session.user.id,
-              email: session.user.email || "",
-              firstName: "",
-              lastName: "",
-              isPro: false,
-              points: 0,
-              isAdmin: false
-            });
-          }
-        } else {
-          // Try to get user from localStorage if no active session
-          const storedUser = localStorage.getItem(AUTH_STORAGE_KEY);
-          
-          if (storedUser) {
-            console.log("No active session, but found stored user data");
-            try {
-              // Attempt to restore from localStorage
-              const parsedUser = JSON.parse(storedUser);
-              
-              try {
-                // Validate stored user by checking session
-                const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-                
-                if (refreshError || !refreshData.session) {
-                  console.log("Stored user invalid, clearing localStorage", refreshError);
-                  localStorage.removeItem(AUTH_STORAGE_KEY);
-                  setUser(null);
-                } else {
-                  // Session refresh worked, set user from localStorage
-                  console.log("Session refreshed successfully, using stored user");
-                  setUser(parsedUser);
-                }
-              } catch (refreshError) {
-                console.error("Session refresh exception:", refreshError);
-                // Hata durumunda localStorage'dan kullanıcıyı yine de deneyelim
-                console.log("Using localStorage user despite refresh error");
-                setUser(parsedUser);
-              }
-            } catch (e) {
-              console.error("Failed to parse stored user:", e);
-              localStorage.removeItem(AUTH_STORAGE_KEY);
-              setUser(null);
-            }
-          } else {
-            console.log("No session and no stored user");
-            setUser(null);
-          }
-        }
-      } catch (err) {
-        console.error("Error initializing auth:", err);
-        
-        // Fallback to localStorage in case of error
-        try {
-          const storedUser = localStorage.getItem(AUTH_STORAGE_KEY);
-          if (storedUser) {
-            console.log("Using localStorage as fallback due to auth error");
-            setUser(JSON.parse(storedUser));
-          } else {
-            setUser(null);
-          }
-        } catch (e) {
-          console.error("Failed to use localStorage fallback:", e);
-          localStorage.removeItem(AUTH_STORAGE_KEY);
-          setUser(null);
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    initAuth();
-
     return () => {
-      console.log("Cleaning up auth listener");
+      console.log("AuthContext: Cleaning up auth listener");
+      isMounted = false; // Bileşen unmount edildiğinde flag'i güncelle
       subscription.unsubscribe();
     };
-  }, []);
+  }, []); // Only run on component mount
 
-  const login = async (email: string, password: string) => {
+  // Load user session based on session user
+  const loadUserSession = async (sessionUser: User | null) => {
     try {
-      setIsLoading(true);
-      console.log("Attempting login for:", email);
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        console.error("Login error from Supabase:", error);
-        throw error;
+      if (sessionUser) {
+        console.log("AuthContext: Session found, fetching profile...", sessionUser.id);
+        const profile = await fetchUserProfile(sessionUser.id, sessionUser.email || "");
+        setUser(profile);
+        console.log("AuthContext: User state set with profile data.", profile);
+      } else {
+        console.log("AuthContext: No active session, clearing user state");
+        setUser(null);
       }
-
-      if (data.user) {
-        console.log("Login successful, fetching profile");
-        try {
-          const profile = await fetchUserProfile(data.user.id);
-          
-          if (profile) {
-            console.log("Setting user with profile after login");
-            setUser({
-              ...profile,
-              email: data.user.email || "",
-            });
-            
-            toast.success("Login successful! Welcome back.");
-            navigate("/dashboard");
-          } else {
-            // If profile fetch failed, at least set basic user info
-            console.log("Profile fetch failed after login, setting basic user info");
-            setUser({
-              id: data.user.id,
-              email: data.user.email || "",
-              firstName: "",
-              lastName: "",
-              isPro: false,
-              points: 0,
-              isAdmin: false
-            });
-            
-            toast.success("Login successful! Welcome back.");
-            navigate("/dashboard");
-          }
-        } catch (profileError) {
-          console.error("Error fetching profile after login:", profileError);
-          // Set basic user info even if profile fetch fails
-          setUser({
-            id: data.user.id,
-            email: data.user.email || "",
-            firstName: "",
-            lastName: "",
-            isPro: false,
-            points: 0,
-            isAdmin: false
-          });
-          
-          toast.success("Login successful!");
-          navigate("/dashboard");
-        }
+    } catch (err) {
+      console.error("AuthContext: Error while fetching profile during session load:", err);
+      // Profil çekme hatası olsa bile oturumun varlığını kabul et, varsayılan profille devam et
+      if (sessionUser) {
+        const defaultProfile = { 
+          id: sessionUser.id, 
+          email: sessionUser.email || "", 
+          firstName: "", 
+          lastName: "", 
+          isPro: false, 
+          points: 0, 
+          isAdmin: false 
+        };
+        setUser(defaultProfile);
+        console.log("AuthContext: Error recovery - setting default profile", defaultProfile);
+      } else {
+        setUser(null);
       }
-    } catch (error: any) {
-      toast.error(`Login failed: ${error.message}`);
-      console.error("Login error:", error);
     } finally {
+      // Her durumda yükleme durumunu false yap
+      console.log("AuthContext: Setting isLoading to false");
       setIsLoading(false);
     }
+  }
+
+  // Giriş fonksiyonu
+  const login = async (email: string, password: string) => {
+    const logPrefix = `[${new Date().toISOString()}] AuthContext:`;
+    console.log(`${logPrefix} Giriş deneniyor:`, email);
+    try {
+      // Supabase ile giriş yapmayı dene
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      // Hata varsa fırlat
+      if (error) throw error;
+      // Başarı mesajı gösterilebilir, state güncellemesi onAuthStateChange ile olacak
+      toast.success("Login successful! Redirecting...");
+    } catch (error: any) {
+      // Hata olursa logla ve toast mesajı göster
+      toast.error(`Login failed: ${error.message}`);
+      console.error(`${logPrefix} Login hatası:`, error);
+      throw error; // Hatayı çağıran yere (SignIn component'i) geri fırlat
+    }
+    // Not: Başarılı giriş sonrası isLoading'i onAuthStateChange yönetecek.
   };
 
+  // Kayıt fonksiyonu
   const signup = async (firstName: string, lastName: string, email: string, password: string) => {
+    const logPrefix = `[${new Date().toISOString()}] AuthContext:`;
+    console.log(`${logPrefix} Kayıt deneniyor:`, email);
     try {
-      setIsLoading(true);
-      console.log("Attempting signup for:", email);
-      
+      // Supabase ile kayıt olmayı dene
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          // Bu bilgiler auth.users tablosundaki raw_user_meta_data sütununa gider
           data: {
             first_name: firstName,
             last_name: lastName,
@@ -371,63 +268,89 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         },
       });
 
-      if (error) {
-        console.error("Signup error from Supabase:", error);
-        throw error;
+      if (error) throw error; // Hata varsa fırlat
+      // Kullanıcı verisi dönmediyse veya user null ise hata fırlat
+      if (!data.user) throw new Error("Signup successful but no user data returned from Supabase.");
+
+      // Kayıt başarılı olduktan sonra 'profiles' tablosunu manuel olarak güncelle.
+      // Supabase trigger'ı (handle_new_user) profili otomatik oluşturmalı,
+      // ancak bu update isimleri eklemeyi garanti eder (trigger meta_data'yı işlemezse diye).
+      const { error: profileUpdateError } = await supabase
+        .from('profiles')
+        .update({ first_name: firstName, last_name: lastName, updated_at: new Date().toISOString() }) // updated_at eklendi
+        .eq('id', data.user.id); // Sadece yeni oluşturulan kullanıcının profilini güncelle
+
+      if (profileUpdateError) {
+        // Profil güncelleme hatası kritik değil, sadece logla
+        console.warn(`${logPrefix} Kayıt sonrası profil güncelleme hatası:`, profileUpdateError.message);
       }
 
-      if (data.user) {
-        console.log("Signup successful, updating profile");
-        // Update the profile with first name and last name
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .update({
-            first_name: firstName,
-            last_name: lastName,
-          })
-          .eq("id", data.user.id);
+      // Başarı mesajı göster ve onboarding sayfasına yönlendir
+      toast.success("Account created successfully! Please check your email for verification if enabled.");
+      navigate("/onboarding");
 
-        if (profileError) {
-          console.error("Error updating profile after signup:", profileError);
-        }
-        
-        toast.success("Account created successfully!");
-        navigate("/onboarding");
-      }
     } catch (error: any) {
+      // Hata olursa logla ve toast mesajı göster
       toast.error(`Signup failed: ${error.message}`);
-      console.error("Signup error:", error);
-    } finally {
-      setIsLoading(false);
+      console.error(`${logPrefix} Signup hatası:`, error);
+      throw error; // Hatayı çağıran yere (SignUp component'i) geri fırlat
     }
+    // Not: Başarılı kayıt sonrası isLoading'i onAuthStateChange yönetecek.
   };
 
+  // Çıkış fonksiyonu
   const logout = async () => {
+    const logPrefix = `[${new Date().toISOString()}] AuthContext:`;
+    console.log(`${logPrefix} Kullanıcı çıkış yapıyor.`);
     try {
-      console.log("Logging out user");
-      await supabase.auth.signOut();
-      setUser(null);
-      // Clear localStorage when logging out
-      localStorage.removeItem(AUTH_STORAGE_KEY);
-      console.log("User data cleared from localStorage");
+      // Supabase'den çıkış yap
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error; // Hata varsa fırlat
+      // setUser(null) onAuthStateChange tarafından yapılacak ama anında UI tepkisi için burada da yapılabilir
+      // setUser(null);
       toast.info("You've been logged out.");
-      navigate("/signin");
-    } catch (error) {
-      console.error("Logout error:", error);
+      navigate("/signin"); // Giriş sayfasına yönlendir
+    } catch (error: any) {
+      // Hata olursa logla ve toast mesajı göster
+      console.error(`${logPrefix} Logout hatası:`, error);
+      toast.error(`Logout failed: ${error.message}`);
+    }
+    // Not: Başarılı/başarısız çıkış sonrası isLoading'i onAuthStateChange yönetecek.
+  };
+
+  // Kullanıcı profilini manuel olarak yenileme fonksiyonu
+  const refreshUserProfile = async () => {
+    const logPrefix = `[${new Date().toISOString()}] AuthContext:`;
+    // Önce mevcut Supabase oturumunu al
+    const { data: { session } } = await supabase.auth.getSession();
+    // Oturum varsa ve context'teki kullanıcı ile aynıysa
+    if (session?.user) {
+        console.log(`${logPrefix} Kullanıcı profili manuel yenileniyor...`);
+        setIsLoading(true); // Yenileme sırasında yükleniyor göster
+        // updateUserState fonksiyonunu çağırarak profili tekrar çek ve state'i güncelle
+        // Bu fonksiyon isLoading'i false yapacak.
+        // isMounted referansını burada oluşturup iletmek gerekir ama basitlik için şimdilik direkt çağırıyoruz.
+        // Gerçek kullanımda, bu fonksiyonun çağrıldığı yerde bir 'iptal' mekanizması olması daha iyi olabilir.
+        await loadUserSession(session.user); // Basit isMounted simülasyonu
+    } else {
+        console.warn(`${logPrefix} Manuel profil yenileme yapılamıyor, aktif oturum yok.`);
     }
   };
 
+  // Context'in dışarıya sağlayacağı değerler
+  const authContextValue: AuthContextType = {
+    user,
+    isAuthenticated: !!user, // user null değilse true
+    isLoading,
+    login,
+    signup,
+    logout,
+    refreshUserProfile
+  };
+
+  // Provider'ı ve içindeki çocuk bileşenleri döndür
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user,
-        isLoading,
-        login,
-        signup,
-        logout
-      }}
-    >
+    <AuthContext.Provider value={authContextValue}>
       {children}
     </AuthContext.Provider>
   );
