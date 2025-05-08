@@ -280,149 +280,105 @@ AS $$
 DECLARE
   v_result JSON;
 BEGIN
-  -- Check if calling user has access to this group
+  -- Çağıran kullanıcının bu gruba erişimi olup olmadığını kontrol edin
   IF NOT EXISTS (
     SELECT 1 FROM public.group_members
     WHERE group_members.group_id = group_id_param
     AND group_members.user_id = auth.uid()
   ) THEN
-    RAISE EXCEPTION 'You do not have access to this group';
+    RAISE EXCEPTION 'Bu gruba erişiminiz yok';
   END IF;
 
-  -- Calculate settlements
-  WITH transaction_shares AS (
-    -- Calculate each expense share for every transaction
+  -- Basit debug için log ekleyin
+  RAISE NOTICE 'Grup hesaplaşması hesaplanıyor: %', group_id_param;
+
+  -- Güncellenmiş hesaplaşma sorgusu - daha basitleştirilmiş
+  WITH expense_payments AS (
+    -- Her bir harcama için kim ödedi
     SELECT 
-      gt.id AS transaction_id,
       gt.user_id AS payer_id,
-      gtm.member_id AS beneficiary_id,
       gt.amount,
-      (gt.amount / COUNT(*) OVER (PARTITION BY gt.id)) AS share_amount
+      gt.id AS transaction_id
     FROM 
       public.group_transactions gt
-    JOIN 
-      public.group_transaction_members gtm ON gt.id = gtm.transaction_id
     WHERE 
       gt.group_id = group_id_param
       AND gt.is_expense = TRUE
   ),
+  expense_shares AS (
+    -- Her bir harcamanın kimlere paylaştırıldığı  
+    SELECT 
+      ep.transaction_id,
+      ep.payer_id,
+      gtm.member_id AS beneficiary_id,
+      ep.amount,
+      ep.amount / COUNT(*) OVER (PARTITION BY ep.transaction_id) AS share_amount
+    FROM 
+      expense_payments ep
+    JOIN 
+      public.group_transaction_members gtm ON ep.transaction_id = gtm.transaction_id
+  ),
   user_balances AS (
-    -- Calculate how much each user paid vs. how much they owe
+    -- Kullanıcı bazında ödenen ve borçlu olunan miktarlar
     SELECT
-      user_id,
-      SUM(CASE WHEN user_id = payer_id THEN amount ELSE 0 END) AS paid_amount,
-      SUM(CASE WHEN user_id = beneficiary_id THEN share_amount ELSE 0 END) AS owed_amount
-    FROM (
-      -- Combine users who paid and beneficiaries into one list
-      SELECT DISTINCT payer_id AS user_id FROM transaction_shares
-      UNION
-      SELECT DISTINCT beneficiary_id FROM transaction_shares
-    ) users
-    CROSS JOIN transaction_shares
-    GROUP BY user_id
+      u.user_id,
+      COALESCE(SUM(CASE WHEN u.user_id = es.payer_id THEN es.amount ELSE 0 END), 0) AS paid_total,
+      COALESCE(SUM(CASE WHEN u.user_id = es.beneficiary_id THEN es.share_amount ELSE 0 END), 0) AS owed_total
+    FROM
+      (SELECT DISTINCT user_id FROM public.group_members WHERE group_id = group_id_param) u
+    LEFT JOIN
+      expense_shares es ON (u.user_id = es.payer_id OR u.user_id = es.beneficiary_id)
+    GROUP BY
+      u.user_id
   ),
   net_balances AS (
-    -- Calculate net balance for each user
+    -- Net bakiyeler (pozitif: alacaklı, negatif: borçlu)
     SELECT
       user_id,
-      paid_amount - owed_amount AS net_balance
+      paid_total - owed_total AS balance
     FROM
       user_balances
   ),
-  creditors AS (
-    -- Users with positive balance (they paid more than their share)
-    SELECT user_id, net_balance
-    FROM net_balances
-    WHERE net_balance > 0
-    ORDER BY net_balance DESC
-  ),
-  debtors AS (
-    -- Users with negative balance (they owe money)
-    SELECT user_id, ABS(net_balance) AS debt
-    FROM net_balances
-    WHERE net_balance < 0
-    ORDER BY net_balance ASC
-  ),
-  settlements AS (
-    -- Calculate who pays whom
-    WITH RECURSIVE settlement_calc(creditor_id, creditor_balance, debtor_id, debtor_balance, amount) AS (
-      -- Start with the highest creditor and highest debtor
-      SELECT 
-        c.user_id, 
-        c.net_balance, 
-        d.user_id, 
-        d.debt,
-        LEAST(c.net_balance, d.debt)
-      FROM 
-        creditors c,
-        debtors d
-      WHERE c.user_id = (SELECT user_id FROM creditors ORDER BY net_balance DESC LIMIT 1)
-        AND d.user_id = (SELECT user_id FROM debtors ORDER BY debt DESC LIMIT 1)
-      
-      UNION ALL
-      
-      -- Continue with remaining balances
-      SELECT
-        -- Keep or update creditor
-        CASE
-          WHEN s.creditor_balance - s.amount > 0 THEN s.creditor_id
-          ELSE (SELECT user_id FROM creditors c WHERE c.user_id > s.creditor_id ORDER BY user_id LIMIT 1)
-        END,
-        CASE
-          WHEN s.creditor_balance - s.amount > 0 THEN s.creditor_balance - s.amount
-          ELSE (SELECT net_balance FROM creditors c WHERE c.user_id > s.creditor_id ORDER BY user_id LIMIT 1)
-        END,
-        -- Keep or update debtor
-        CASE
-          WHEN s.debtor_balance - s.amount > 0 THEN s.debtor_id
-          ELSE (SELECT user_id FROM debtors d WHERE d.user_id > s.debtor_id ORDER BY user_id LIMIT 1)
-        END,
-        CASE
-          WHEN s.debtor_balance - s.amount > 0 THEN s.debtor_balance - s.amount
-          ELSE (SELECT debt FROM debtors d WHERE d.user_id > s.debtor_id ORDER BY user_id LIMIT 1)
-        END,
-        LEAST(
-          CASE
-            WHEN s.creditor_balance - s.amount > 0 THEN s.creditor_balance - s.amount
-            ELSE (SELECT net_balance FROM creditors c WHERE c.user_id > s.creditor_id ORDER BY user_id LIMIT 1)
-          END,
-          CASE
-            WHEN s.debtor_balance - s.amount > 0 THEN s.debtor_balance - s.amount
-            ELSE (SELECT debt FROM debtors d WHERE d.user_id > s.debtor_id ORDER BY user_id LIMIT 1)
-          END
-        )
-      FROM settlement_calc s
-      WHERE (s.creditor_balance - s.amount > 0 OR EXISTS (SELECT 1 FROM creditors c WHERE c.user_id > s.creditor_id))
-        AND (s.debtor_balance - s.amount > 0 OR EXISTS (SELECT 1 FROM debtors d WHERE d.user_id > s.debtor_id))
-    )
-    SELECT 
-      sc.debtor_id AS from_user_id,
-      sc.creditor_id AS to_user_id,
-      sc.amount
-    FROM 
-      settlement_calc sc
+  debts AS (
+    -- Kimin kime ne kadar ödeyeceği
+    SELECT
+      debtors.user_id AS from_user_id,
+      creditors.user_id AS to_user_id,
+      LEAST(ABS(debtors.balance), creditors.balance) AS amount
+    FROM
+      (SELECT user_id, balance FROM net_balances WHERE balance < 0) debtors
+    CROSS JOIN
+      (SELECT user_id, balance FROM net_balances WHERE balance > 0) creditors
     WHERE 
-      sc.amount > 0
+      ABS(debtors.balance) > 0 AND creditors.balance > 0
+    ORDER BY
+      ABS(debtors.balance) DESC, creditors.balance DESC
   )
   
-  -- Format the result as JSON
-  SELECT 
-    json_agg(
-      json_build_object(
-        'from_user_id', s.from_user_id,
-        'to_user_id', s.to_user_id,
-        'amount', ROUND(s.amount::numeric, 2),
-        'from_user_name', COALESCE(p1.first_name || ' ' || p1.last_name, 'User ' || s.from_user_id),
-        'to_user_name', COALESCE(p2.first_name || ' ' || p2.last_name, 'User ' || s.to_user_id)
-      )
+  -- JSON sonucunu formatlama
+  SELECT
+    COALESCE(
+      json_agg(
+        json_build_object(
+          'from_user_id', d.from_user_id,
+          'to_user_id', d.to_user_id,
+          'amount', ROUND(d.amount::numeric, 2),
+          'from_user_name', COALESCE(p1.first_name || ' ' || p1.last_name, 'Kullanıcı ' || d.from_user_id),
+          'to_user_name', COALESCE(p2.first_name || ' ' || p2.last_name, 'Kullanıcı ' || d.to_user_id)
+        )
+      ),
+      '[]'::JSON
     ) INTO v_result
-  FROM 
-    settlements s
+  FROM
+    debts d
   LEFT JOIN
-    profiles p1 ON s.from_user_id = p1.id
+    profiles p1 ON d.from_user_id = p1.id
   LEFT JOIN
-    profiles p2 ON s.to_user_id = p2.id;
+    profiles p2 ON d.to_user_id = p2.id;
 
+  -- Debug için sonucu kaydedin
+  RAISE NOTICE 'Hesaplaşma sonucu: %', v_result;
+  
   RETURN COALESCE(v_result, '[]'::JSON);
 END;
 $$;

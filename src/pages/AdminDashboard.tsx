@@ -37,7 +37,6 @@ interface UpgradeRequest {
   user_profile?: {
     first_name: string | null;
     last_name: string | null;
-    email: string | null;
   } | null;
 }
 
@@ -94,18 +93,58 @@ const AdminDashboard = () => {
     queryFn: async () => {
       if (!user?.id) return [];
       
-      // Yükseltme taleplerini çek, join ile kullanıcı bilgilerini de al
-      const { data, error } = await supabase
-        .from("upgrade_requests")
-        .select(`
-          id, user_id, status, created_at, notes, approved_by, approved_at,
-          user_profile:profiles(first_name, last_name, email)
-        `)
-        .order('created_at', { ascending: false });
+      try {
+        // Upgrade talepleri
+        const { data: requestsData, error: requestsError } = await supabase
+          .from("upgrade_requests")
+          .select(`
+            id, user_id, status, created_at, notes, approved_by, approved_at
+          `)
+          .order('created_at', { ascending: false });
+          
+        if (requestsError) throw requestsError;
         
-      if (error) throw error;
-      
-      return data as unknown as UpgradeRequest[];
+        if (!requestsData || requestsData.length === 0) {
+          return [];
+        }
+        
+        // Kullanıcı bilgilerini ayrı sorgu ile al
+        const userIds = requestsData.map((req) => req.user_id);
+        
+        const { data: profilesData, error: profilesError } = await supabase
+          .from("profiles")
+          .select(`id, first_name, last_name`)
+          .in('id', userIds);
+          
+        if (profilesError) throw profilesError;
+        
+        // Profil verilerini ID'ye göre eşleştir
+        const profileMap: Record<string, { first_name: string | null, last_name: string | null }> = {};
+        
+        profilesData?.forEach(profile => {
+          profileMap[profile.id] = {
+            first_name: profile.first_name,
+            last_name: profile.last_name
+          };
+        });
+        
+        // Verileri birleştir
+        const result = requestsData.map(request => ({
+          id: request.id,
+          user_id: request.user_id,
+          status: request.status,
+          created_at: request.created_at,
+          notes: request.notes,
+          approved_by: request.approved_by,
+          approved_at: request.approved_at,
+          user_profile: profileMap[request.user_id] || { first_name: null, last_name: null }
+        }));
+        
+        return result;
+      } catch (error) {
+        console.error("Yükseltme talepleri getirilirken hata:", error);
+        throw error;
+      }
     },
     enabled: !isAuthLoading && !!user?.id && isAuthenticated && user.isAdmin,
   });
@@ -471,7 +510,7 @@ const AdminDashboard = () => {
                                     : `Kullanıcı ${request.user_id.substring(0, 6)}`}
                                 </p>
                                 <div className="flex items-center text-xs text-gray-500">
-                                  <Badge variant={request.status === 'approved' ? "success" : "destructive"} className="mr-2">
+                                  <Badge variant={request.status === 'approved' ? "default" : "destructive"} className="mr-2">
                                     {request.status === 'approved' ? 'Onaylandı' : 'Reddedildi'}
                                   </Badge>
                                   <span>{new Date(request.approved_at || '').toLocaleDateString()}</span>

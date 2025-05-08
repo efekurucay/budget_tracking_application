@@ -31,13 +31,17 @@ import {
   Check,
   CreditCard,
   RefreshCw,
-  Mail
+  Mail,
+  PlusCircle,
+  RefreshCcw,
+  LogOut
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
+import { Label } from "@/components/ui/label";
 
 // Grup için arayüz tanımları
 interface Group {
@@ -55,6 +59,7 @@ interface GroupMember {
   role: string;
   joined_at: string;
   profile?: {
+    id?: string;
     first_name?: string;
     last_name?: string;
   } | null;
@@ -129,6 +134,7 @@ const GroupDetail = () => {
   const [inviteEmail, setInviteEmail] = useState("");
   const [addTransactionOpen, setAddTransactionOpen] = useState(false);
   const [editGroupOpen, setEditGroupOpen] = useState(false);
+  const [invitationExpiry, setInvitationExpiry] = useState(7); // 7 günlük davet varsayılan
   
   // Form durumları
   const [transactionAmount, setTransactionAmount] = useState("");
@@ -152,7 +158,7 @@ const GroupDetail = () => {
   const [showFilters, setShowFilters] = useState(false);
   
   // Hesaplaşma durumları
-  const [showSettlements, setShowSettlements] = useState(false);
+  const [showSettlements, setShowSettlements] = useState(true); // Varsayılan olarak true yapıldı
   
   // Davet durumları
   const [activeInvitationsOpen, setActiveInvitationsOpen] = useState(false);
@@ -184,28 +190,101 @@ const GroupDetail = () => {
   
   // Grup üyelerini çek
   const {
-    data: members = [],
+    data: members = [] as GroupMember[],
     isLoading: isMembersLoading,
     error: membersError,
     isError: isMembersError,
+    refetch: refetchMembers
   } = useQuery({
     queryKey: ["group-members", groupId],
     queryFn: async () => {
-      if (!groupId || !user?.id) return [];
-      console.log("GroupDetail: Fetching group members for:", groupId);
+      if (!groupId || !user?.id) {
+        console.log("Group üyeleri yüklenemedi: groupId veya user.id eksik");
+        return [];
+      }
       
-      const { data, error } = await supabase
-        .from("group_members")
-        .select(`
-          *,
-          profile:profiles(first_name, last_name)
-        `)
-        .eq("group_id", groupId);
+      console.log(`[DEBUG] GroupDetail: Grup üyeleri getiriliyor (groupId): ${groupId}, userId: ${user.id}`);
+      
+      try {
+        // Tarayıcı konsoluna SQL benzeri sorgu logla
+        console.log(`[DEBUG] Supabase sorgusu: SELECT * FROM group_members WHERE group_id = ${groupId}`);
         
-      if (error) throw error;
-      return data as GroupMember[];
+        const { data: membersData, error: membersError } = await supabase
+          .from("group_members")
+          .select("*")
+          .eq("group_id", groupId);
+          
+        if (membersError) {
+          console.error("[HATA] Grup üyeleri alınırken hata:", membersError);
+          console.error("Hata tipi:", membersError.code, membersError.details, membersError.hint, membersError.message);
+          throw membersError;
+        }
+        
+        if (!membersData || membersData.length === 0) {
+          console.warn(`[UYARI] Grup üyeleri bulunamadı. Grup ID: ${groupId}`);
+          // Grup oluşturan kişi en azından grupta olmalı, bu yüzden üye yoksa bir sorun var
+          if (group && group.created_by === user.id) {
+            console.log("[ÖNEMLİ] Bu grup sizin tarafınızdan oluşturulmuş, ancak üyeler tablosunda kaydınız yok! Grup oluşturma işlemindeki insertUser kaydı çalışmamış olabilir.");
+            
+            // Otomatik düzeltme deneyin
+            addUserToGroup(groupId, user.id, "owner")
+              .then(success => {
+                if (success) {
+                  // Yeniden sorgula
+                  refetchMembers();
+                  toast.success("Üye kaydınız otomatik olarak düzeltildi. Sayfa yenileniyor.");
+                  setTimeout(() => window.location.reload(), 1500);
+                } else {
+                  toast.error("Otomatik düzeltme başarısız oldu. Sayfayı yenileyin veya yöneticiniz ile iletişime geçin.");
+                }
+              });
+          }
+          return [];
+        }
+        
+        // Kullanıcı profil bilgilerini ayrıca getir
+        const userIds = membersData.map(member => member.user_id);
+        
+        // Profil verilerini ayrı bir sorgu ile al
+        const { data: profilesData, error: profilesError } = await supabase
+          .from("profiles")
+          .select("id, first_name, last_name")
+          .in("id", userIds);
+          
+        if (profilesError) {
+          console.error("[HATA] Kullanıcı profilleri alınırken hata:", profilesError);
+          // Sadece grup üyelerini döndür, profil olmadan
+          console.log(`[BAŞARILI] Grup üyeleri başarıyla alındı ancak profil bilgileri alınamadı: ${membersData.length} üye var:`, membersData);
+          return membersData.map(member => ({
+            ...member,
+            profile: null
+          } as GroupMember));
+        }
+        
+        // Profil verilerini üye verileriyle birleştir
+        const membersWithProfiles = membersData.map(member => {
+          const profile = profilesData?.find(p => p.id === member.user_id);
+          return {
+            ...member,
+            profile: profile || null
+          } as GroupMember;
+        });
+        
+        console.log(`[BAŞARILI] Grup üyeleri ve profil bilgileri başarıyla alındı: ${membersWithProfiles.length} üye var:`, membersWithProfiles);
+        
+        return membersWithProfiles as GroupMember[];
+      } catch (err) {
+        console.error("[KRİTİK HATA] Grup üyeleri alınırken exception:", err);
+        // Browser konsolda kırmızı olarak göster
+        console.error("%c GrupDetay - GRUP ÜYELERİ YÜKLENME HATASI ", "background: red; color: white; padding: 2px;", err);
+        throw err;
+      }
     },
     enabled: !isAuthLoading && !!user?.id && !!groupId && isAuthenticated,
+    retry: 3,
+    retryDelay: 1000, 
+    refetchOnWindowFocus: false,
+    staleTime: 30000,
   });
   
   // Kullanıcının bu gruptaki rolünü belirle
@@ -255,6 +334,32 @@ const GroupDetail = () => {
       toast.error(`Üye çıkarma başarısız: ${error.message}`);
     },
   });
+  
+  // Davet silme mutasyonu
+  const removeInvitationMutation = useMutation({
+    mutationFn: async (invitationId: string) => {
+      if (!isOwner) throw new Error("Bu işlem için yetkiniz yok");
+      
+      const { error } = await (supabase as any)
+        .from("group_invitations")
+        .delete()
+        .eq("id", invitationId);
+        
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["group-invitations", groupId] });
+      toast.success("Davet silindi");
+    },
+    onError: (error: any) => {
+      toast.error(`Davet silme başarısız: ${error.message}`);
+    },
+  });
+  
+  // Davet oluşturma/gönderme mutasyonu (UI amacıyla)
+  const createInvitationMutation = { 
+    isPending: false 
+  };
   
   // Grup davetlerini getir
   const {
@@ -905,7 +1010,9 @@ const GroupDetail = () => {
                     <span>{new Date(transaction.date).toLocaleDateString('tr-TR')}</span>
                     <span className="mx-1">•</span>
                     <span>
-                      {members.find(m => m.user_id === transaction.user_id)?.profile?.first_name || 'Kullanıcı'}
+                      {members.find(m => m.user_id === transaction.user_id) 
+                        ? formatUserName(members.find(m => m.user_id === transaction.user_id) as GroupMember) 
+                        : 'Kullanıcı'}
                     </span>
                     {transaction.category && (
                       <>
@@ -987,6 +1094,9 @@ const GroupDetail = () => {
       if (!groupId || !user?.id) return [];
       
       try {
+        // Debug log ekliyoruz
+        console.log("Hesaplaşma verisi için RPC çağrısı yapılıyor:", { groupId, userId: user.id });
+        
         // Tip güvenliği için as any kullanıyoruz
         const { data, error } = await (supabase as any).rpc('calculate_group_settlement', { 
           group_id_param: groupId 
@@ -1001,6 +1111,9 @@ const GroupDetail = () => {
           console.warn("GroupDetail: No settlements returned from RPC function");
           return [];
         }
+        
+        // Debug log - dönen veriyi kontrol et
+        console.log("Hesaplaşma verisi döndü:", data);
         
         // Veriyi doğru tipe dönüştürün
         return data as SettlementItem[];
@@ -1150,161 +1263,27 @@ const GroupDetail = () => {
     );
   };
   
-  // TabsContent değişikliği - settlements sekmesi ekleyin
+  // TabsContent'in içeriğini render et
   const renderTabsContent = () => {
     return (
       <Tabs defaultValue="transactions">
-        <TabsList className="w-full">
-          <TabsTrigger value="transactions" className="flex-1">
-            <Wallet className="h-4 w-4 mr-2" /> İşlemler
-          </TabsTrigger>
-          <TabsTrigger value="settlements" className="flex-1" onClick={() => setShowSettlements(true)}>
-            <CreditCard className="h-4 w-4 mr-2" /> Hesaplaşma
-          </TabsTrigger>
-          <TabsTrigger value="settings" className="flex-1">
-            <Settings className="h-4 w-4 mr-2" /> Ayarlar
-          </TabsTrigger>
+        <TabsList>
+          <TabsTrigger value="transactions">İşlemler</TabsTrigger>
+          <TabsTrigger value="settlements">Hesaplaşma</TabsTrigger>
+          {isOwner && <TabsTrigger value="settings">Ayarlar</TabsTrigger>}
         </TabsList>
         
+        {/* İşlemler sekmesi */}
         <TabsContent value="transactions">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium">Grup İşlemleri</h3>
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setShowFilters(!showFilters)}
-              >
-                <Filter className="h-4 w-4 mr-2" /> 
-                {showFilters ? "Filtreleri Gizle" : "Filtrele"}
-              </Button>
-              <Button 
-                size="sm"
-                onClick={() => setAddTransactionOpen(true)}
-              >
-                <Wallet className="h-4 w-4 mr-2" /> İşlem Ekle
-              </Button>
-            </div>
-          </div>
-          
-          {showFilters && (
-            <div className="bg-slate-50 p-4 rounded-lg mb-4 border">
-              <div className="text-sm font-medium mb-3">İşlemleri Filtrele</div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {/* Kategori filtreleme */}
-                <div>
-                  <label className="text-xs text-gray-600 mb-1 block">Kategori</label>
-                  <Select 
-                    value={categoryFilter || ""} 
-                    onValueChange={(value) => setCategoryFilter(value || null)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Tüm kategoriler" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Tüm kategoriler</SelectItem>
-                      {TRANSACTION_CATEGORIES.map(category => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.icon} {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                {/* Başlangıç tarih filtreleme */}
-                <div>
-                  <label className="text-xs text-gray-600 mb-1 block">Başlangıç Tarihi</label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="justify-start text-left font-normal w-full"
-                        disabled={isTransactionsLoading}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {startDateFilter ? (
-                          format(startDateFilter, "PPP", { locale: tr })
-                        ) : (
-                          <span>Tarih seçin</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={startDateFilter || undefined}
-                        onSelect={setStartDateFilter}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                
-                {/* Bitiş tarih filtreleme */}
-                <div>
-                  <label className="text-xs text-gray-600 mb-1 block">Bitiş Tarihi</label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="justify-start text-left font-normal w-full"
-                        disabled={isTransactionsLoading}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {endDateFilter ? (
-                          format(endDateFilter, "PPP", { locale: tr })
-                        ) : (
-                          <span>Tarih seçin</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={endDateFilter || undefined}
-                        onSelect={setEndDateFilter}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              </div>
-              
-              {/* Filtre temizleme */}
-              <div className="mt-3 flex justify-end">
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={clearFilters}
-                  disabled={!categoryFilter && !startDateFilter && !endDateFilter}
-                >
-                  Filtreleri Temizle
-                </Button>
-              </div>
-            </div>
-          )}
-          
           {renderTransactionsContent()}
         </TabsContent>
         
+        {/* Hesaplaşma sekmesi */}
         <TabsContent value="settlements">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium">Grup Hesaplaşması</h3>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => refetchSettlements()}
-              disabled={isSettlementsLoading}
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isSettlementsLoading ? 'animate-spin' : ''}`} /> 
-              Yenile
-            </Button>
-          </div>
-          
           {renderSettlementsContent()}
         </TabsContent>
         
+        {/* Ayarlar sekmesi */}
         <TabsContent value="settings">
           {isOwner ? (
             <div className="space-y-6">
@@ -1330,14 +1309,13 @@ const GroupDetail = () => {
                   variant="destructive"
                   onClick={handleGroupDelete}
                 >
-                  <Trash2 className="mr-2 h-4 w-4" /> Grubu Sil
+                  Grubu Sil
                 </Button>
               </div>
             </div>
           ) : (
-            <div className="space-y-6">
-              <div className="text-center py-6">
-                <AlertCircle className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+            <div className="py-6 space-y-4">
+              <div>
                 <h3 className="text-lg font-medium">Yetki Gerekiyor</h3>
                 <p className="text-sm text-gray-500 mt-1 mb-8">
                   Grup ayarlarını değiştirmek için grup sahibi olmalısınız.
@@ -1345,12 +1323,29 @@ const GroupDetail = () => {
                     {currentUserRole === 'owner' || user?.id === group.created_by ? 'Sahip' : 'Üye'}
                   </Badge>
                 </p>
+              </div>
+              <div>
+                <h3 className="text-base font-medium mb-2">Grup Bilgileri</h3>
+                <div className="bg-gray-50 p-4 rounded-md border">
+                  <p className="text-sm text-gray-700">
+                    <strong>Grup Adı:</strong> {group.name}
+                  </p>
+                  {group.description && (
+                    <p className="text-sm text-gray-700 mt-2">
+                      <strong>Açıklama:</strong> {group.description}
+                    </p>
+                  )}
+                  <p className="text-sm text-gray-500 mt-2">
+                    <strong>Oluşturulma:</strong> {new Date(group.created_at).toLocaleDateString('tr-TR')}
+                  </p>
+                </div>
+              </div>
+              <div className="pt-4">
                 <Button 
-                  variant="outline" 
-                  className="text-red-600 border-red-200 hover:bg-red-50"
+                  variant="destructive" 
                   onClick={handleLeaveGroup}
                 >
-                  Gruptan Ayrıl
+                  <LogOut className="h-4 w-4 mr-2" /> Gruptan Ayrıl
                 </Button>
               </div>
             </div>
@@ -1519,6 +1514,54 @@ const GroupDetail = () => {
     );
   }
   
+  // Kullanıcının bir gruba otomatik eklenmesi için yardımcı fonksiyon 
+  const addUserToGroup = async (groupID: string, userID: string, role: string = 'member') => {
+    try {
+      console.log(`[OTOMATİK DÜZELTME] Kullanıcı (${userID}) grubu oluşturmuş ama üye olarak kaydedilmemiş. Üye olarak ekleniyor.`);
+      
+      const { data, error } = await supabase
+        .from("group_members")
+        .insert([
+          {
+            group_id: groupID,
+            user_id: userID,
+            role: role, // Grup oluşturan kişiyse "owner" olmalı
+          },
+        ]);
+        
+      if (error) {
+        console.error("[HATA] Grup üyesi otomatik eklenirken hata:", error);
+        return false;
+      }
+      
+      console.log("[BAŞARILI] Kullanıcı gruba otomatik olarak eklendi");
+      return true;
+    } catch (err) {
+      console.error("[HATA] Kullanıcı gruba eklenirken beklenmeyen hata:", err);
+      return false;
+    }
+  };
+  
+  // Kullanıcı adını formatlayan yardımcı fonksiyon
+  const formatUserName = (member: GroupMember) => {
+    if (member.profile?.first_name && member.profile?.last_name) {
+      return `${member.profile.first_name} ${member.profile.last_name}`;
+    } else if (member.profile?.first_name) {
+      return member.profile.first_name;
+    } else {
+      return `Kullanıcı ${member.user_id.substring(0, 6)}`;
+    }
+  };
+  
+  // Kullanıcı avatar baş harfini formatlayan yardımcı fonksiyon
+  const formatUserInitial = (member: GroupMember) => {
+    if (member.profile?.first_name) {
+      return member.profile.first_name[0].toUpperCase();
+    } else {
+      return member.user_id[0].toUpperCase();
+    }
+  };
+  
   return (
     <DashboardLayout>
       <div className="container mx-auto py-6">
@@ -1589,46 +1632,45 @@ const GroupDetail = () => {
               </CardContent>
             </Card>
               
-            {/* Üyeler kartı - Burayı güncelle */}
-            <Card className="lg:col-span-1">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <div>
-                  <CardTitle className="text-base">Üyeler</CardTitle>
-                  <CardDescription>Bu gruptaki üyeler ve rolleri</CardDescription>
-                </div>
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => {
-                      setActiveInvitationsOpen(!activeInvitationsOpen);
-                      if (!activeInvitationsOpen) refetchInvitations();
-                    }}
-                  >
-                    {activeInvitationsOpen ? "Davetleri Gizle" : "Aktif Davetler"}
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => setInviteDialogOpen(true)}
-                  >
-                    <UserPlus className="h-4 w-4 mr-1" /> Davet Et
-                  </Button>
-                </div>
+            {/* Üyeler kartı */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Üyeler</CardTitle>
+                <CardDescription className="text-sm">
+                  Bu gruptaki üyeler ve rolleri
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                {activeInvitationsOpen && (
-                  <div className="mb-4 p-3 bg-blue-50 rounded-md border border-blue-100">
-                    <h3 className="text-sm font-medium text-blue-800 mb-2 flex items-center">
-                      <Mail className="h-4 w-4 mr-1" /> Bekleyen Davetler
-                    </h3>
-                    {renderActiveInvitations()}
-                  </div>
-                )}
-                
                 <div className="space-y-3">
-                  {members.length === 0 ? (
-                    <p className="text-sm text-gray-500 text-center py-4">Henüz üye bulunmuyor</p>
+                  {isMembersLoading ? (
+                    <div className="flex justify-center py-4">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    </div>
+                  ) : isMembersError ? (
+                    <div className="text-center py-4">
+                      <p className="text-sm text-red-500">Üyeler yüklenirken hata oluştu</p>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="mt-2" 
+                        onClick={() => refetchMembers()}
+                      >
+                        <RefreshCcw className="h-4 w-4 mr-1" /> Yeniden Dene
+                      </Button>
+                    </div>
+                  ) : members.length === 0 ? (
+                    <div className="text-center py-4">
+                      <p className="text-sm text-gray-500">Henüz üye bulunmuyor</p>
+                      <p className="text-xs text-gray-400 mt-1">Bu beklenmedik bir durum, yenilemeyi deneyin</p>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="mt-2" 
+                        onClick={() => refetchMembers()}
+                      >
+                        <RefreshCcw className="h-4 w-4 mr-1" /> Yenile
+                      </Button>
+                    </div>
                   ) : (
                     members.map((member) => (
                       <div 
@@ -1638,27 +1680,25 @@ const GroupDetail = () => {
                         <div className="flex items-center">
                           <Avatar className="h-8 w-8 mr-2">
                             <AvatarFallback>
-                              {member.profile?.first_name?.[0] || member.user_id[0]}
+                              {formatUserInitial(member)}
                             </AvatarFallback>
                           </Avatar>
                           <div>
                             <p className="text-sm font-medium">
-                              {member.profile?.first_name && member.profile?.last_name
-                                ? `${member.profile.first_name} ${member.profile.last_name}`
-                                : `Kullanıcı ${member.user_id.substring(0, 6)}`}
+                              {formatUserName(member)}
                             </p>
                             <Badge 
-                              variant={member.role === 'owner' ? 'default' : 'secondary'}
+                              variant={member.role === 'owner' || member.user_id === group?.created_by ? 'default' : 'secondary'}
                               className="text-xs"
                             >
-                              {member.role === 'owner' || member.user_id === group.created_by 
+                              {member.role === 'owner' || member.user_id === group?.created_by 
                                 ? 'Sahip' 
                                 : 'Üye'}
                             </Badge>
                           </div>
                         </div>
                         
-                        {isOwner && member.user_id !== user.id && (
+                        {isOwner && member.user_id !== user?.id && (
                           <Button 
                             variant="ghost" 
                             size="icon" 
@@ -1840,13 +1880,11 @@ const GroupDetail = () => {
                         <div className="flex items-center">
                           <Avatar className="h-7 w-7 mr-2">
                             <AvatarFallback className="text-xs">
-                              {member.profile?.first_name?.[0] || member.user_id[0]}
+                              {formatUserInitial(member)}
                             </AvatarFallback>
                           </Avatar>
                           <span className="text-sm">
-                            {member.profile?.first_name && member.profile?.last_name
-                              ? `${member.profile.first_name} ${member.profile.last_name}`
-                              : `Kullanıcı ${member.user_id.substring(0, 6)}`}
+                            {formatUserName(member)}
                             {member.user_id === user?.id && " (Sen)"}
                           </span>
                         </div>
