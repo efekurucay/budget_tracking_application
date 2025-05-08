@@ -19,6 +19,8 @@ import { Button } from "@/components/ui/button";
 import Logo from "@/components/Logo";
 import { useAuth } from "@/context/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useTranslation } from "react-i18next";
+import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,36 +62,37 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const location = useLocation();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const navItems = [
     {
       icon: <Home size={20} />,
-      label: "Dashboard",
+      label: t("dashboard.pageTitle", "Dashboard"),
       to: "/dashboard",
     },
     {
       icon: <Wallet size={20} />,
-      label: "Transactions",
+      label: t("transactions.pageTitle", "Transactions"),
       to: "/transactions",
     },
     {
       icon: <Target size={20} />,
-      label: "Goals",
+      label: t("goals.pageTitle", "Goals"),
       to: "/goals",
     },
     {
       icon: <PieChart size={20} />,
-      label: "Budget",
+      label: t("budget.pageTitle", "Budget"),
       to: "/budget",
     },
     {
       icon: <BarChart2 size={20} />,
-      label: "Reports",
+      label: t("reports.pageTitle", "Reports"),
       to: "/reports",
     },
     {
       icon: <Users size={20} />,
-      label: "Groups",
+      label: t("group.pageTitle", "Groups"),
       to: "/groups",
     },
   ];
@@ -98,7 +101,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const premiumItems = user?.isPro ? [
     {
       icon: <MessageSquare size={20} />,
-      label: "AI Assistant",
+      label: t("aiAssistant.pageTitle", "AI Assistant"),
       to: "/ai-assistant",
     },
     {
@@ -162,7 +165,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               className="w-full mb-4 border-g15-accent text-g15-accent hover:bg-g15-accent hover:text-g15-accent-foreground"
               onClick={() => navigate("/upgrade")}
             >
-              Upgrade to Pro
+              {t("upgrade.upgradeToPro", "Upgrade to Pro")}
             </Button>
           )}
 
@@ -179,41 +182,47 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               </div>
             </div>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Settings size={16} />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate("/profile")}>
-                  <User size={16} className="mr-2" />
-                  Profile
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/notifications")}>
-                  <Bell size={16} className="mr-2" />
-                  Notifications
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/settings")}>
-                  <Settings size={16} className="mr-2" />
-                  Settings
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={logout}>
-                  <LogOut size={16} className="mr-2" />
-                  Log out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex space-x-1">
+              <LanguageSwitcher />
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Settings size={16} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>{t("settings.pageTitle", "My Account")}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate("/profile")}>
+                    <User size={16} className="mr-2" />
+                    {t("settings.profile", "Profile")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/notifications")}>
+                    <Bell size={16} className="mr-2" />
+                    {t("notifications.pageTitle", "Notifications")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/settings")}>
+                    <Settings size={16} className="mr-2" />
+                    {t("settings.pageTitle", "Settings")}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={logout}>
+                    <LogOut size={16} className="mr-2" />
+                    {t("auth.logout", "Logout")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Main content */}
-      <div className="flex-1 overflow-auto">
-        <div className="py-6 px-8">{children}</div>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <main className="flex-1 overflow-y-auto p-6">
+          {children}
+        </main>
       </div>
     </div>
   );

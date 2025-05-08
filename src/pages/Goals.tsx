@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/ui/sonner";
@@ -12,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useTranslation } from "react-i18next";
 import { 
   Plus, 
   Target,
@@ -49,6 +49,7 @@ const progressSchema = z.object({
 });
 
 const Goals = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
@@ -83,7 +84,7 @@ const Goals = () => {
         .order("created_at", { ascending: false });
       
       if (error) {
-        toast.error("Hedefler yüklenirken bir hata oluştu");
+        toast.error(t("common.error", "Hedefler yüklenirken bir hata oluştu"));
         throw error;
       }
       
@@ -109,7 +110,7 @@ const Goals = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["goals"] });
-      toast.success("Hedef başarıyla eklendi");
+      toast.success(t("goals.actions.goalAdded", "Hedef başarıyla eklendi"));
       setDialogOpen(false);
       form.reset({
         name: "",
@@ -118,7 +119,7 @@ const Goals = () => {
       });
     },
     onError: (error) => {
-      toast.error(`Hedef eklenirken bir hata oluştu: ${error.message}`);
+      toast.error(`${t("common.error", "Hata")}: ${error.message}`);
     },
   });
 
@@ -135,12 +136,12 @@ const Goals = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["goals"] });
-      toast.success("Hedef ilerleme durumu güncellendi");
+      toast.success(t("goals.actions.goalUpdated", "Hedef ilerleme durumu güncellendi"));
       setUpdateDialogOpen(false);
       updateForm.reset();
     },
     onError: (error) => {
-      toast.error(`Hedef güncellenirken bir hata oluştu: ${error.message}`);
+      toast.error(`${t("common.error", "Hata")}: ${error.message}`);
     },
   });
 
@@ -152,10 +153,10 @@ const Goals = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["goals"] });
-      toast.success("Hedef başarıyla silindi");
+      toast.success(t("goals.actions.goalDeleted", "Hedef başarıyla silindi"));
     },
     onError: (error) => {
-      toast.error(`Hedef silinirken bir hata oluştu: ${error.message}`);
+      toast.error(`${t("common.error", "Hata")}: ${error.message}`);
     },
   });
 
@@ -192,21 +193,21 @@ const Goals = () => {
     <DashboardLayout>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Finansal Hedefler</h1>
-          <p className="text-gray-600">Finansal hedeflerinizi oluşturun ve takip edin</p>
+          <h1 className="text-2xl font-bold">{t("goals.pageTitle", "Finansal Hedefler")}</h1>
+          <p className="text-gray-600">{t("goals.createFirstGoal", "Finansal hedeflerinizi oluşturun ve takip edin")}</p>
         </div>
         
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button>
-              <Plus className="mr-2 h-4 w-4" /> Hedef Ekle
+              <Plus className="mr-2 h-4 w-4" /> {t("goals.addGoal", "Hedef Ekle")}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Yeni Finansal Hedef</DialogTitle>
+              <DialogTitle>{t("goals.addGoal", "Yeni Finansal Hedef")}</DialogTitle>
               <DialogDescription>
-                Yeni bir finansal hedef oluşturun ve ilerlemenizi takip edin.
+                {t("goals.createFirstGoal", "Yeni bir finansal hedef oluşturun ve ilerlemenizi takip edin.")}
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>
@@ -216,9 +217,9 @@ const Goals = () => {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Hedef Adı</FormLabel>
+                      <FormLabel>{t("goals.goalName", "Hedef Adı")}</FormLabel>
                       <FormControl>
-                        <Input placeholder="Örnek: Tatil Fonu, Araba Alımı" {...field} />
+                        <Input placeholder={t("goals.goalName", "Örnek: Tatil Fonu, Araba Alımı")} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -230,7 +231,7 @@ const Goals = () => {
                   name="target_amount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Hedef Tutar (₺)</FormLabel>
+                      <FormLabel>{t("goals.targetAmount", "Hedef Tutar (₺)")}</FormLabel>
                       <FormControl>
                         <Input type="number" min="1" step="0.01" {...field} />
                       </FormControl>
@@ -244,7 +245,7 @@ const Goals = () => {
                   name="current_amount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Başlangıç Tutar (₺)</FormLabel>
+                      <FormLabel>{t("goals.startingAmount", "Başlangıç Tutar (₺)")}</FormLabel>
                       <FormControl>
                         <Input type="number" min="0" step="0.01" {...field} />
                       </FormControl>
@@ -255,7 +256,7 @@ const Goals = () => {
                 
                 <DialogFooter>
                   <Button type="submit" disabled={addGoalMutation.isPending}>
-                    {addGoalMutation.isPending ? "Ekleniyor..." : "Hedef Ekle"}
+                    {addGoalMutation.isPending ? t("common.loading", "Ekleniyor...") : t("goals.addGoal", "Hedef Ekle")}
                   </Button>
                 </DialogFooter>
               </form>
@@ -267,15 +268,15 @@ const Goals = () => {
         <Dialog open={updateDialogOpen} onOpenChange={setUpdateDialogOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Hedef İlerleme Durumunu Güncelle</DialogTitle>
+              <DialogTitle>{t("goals.currentAmount", "Hedef İlerleme Durumunu Güncelle")}</DialogTitle>
               <DialogDescription>
-                {selectedGoal?.name} hedefi için mevcut tutar bilgisini güncelleyin.
+                {selectedGoal?.name} {t("goals.currentAmount", "hedefi için mevcut tutar bilgisini güncelleyin.")}
               </DialogDescription>
             </DialogHeader>
             <Form {...updateForm}>
               <form onSubmit={handleUpdateSubmit} className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span>Hedef Tutar:</span>
+                  <span>{t("goals.targetAmount", "Hedef Tutar")}:</span>
                   <span className="font-bold">{selectedGoal && formatCurrency(selectedGoal.target_amount)}</span>
                 </div>
                 
@@ -284,7 +285,7 @@ const Goals = () => {
                   name="current_amount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Mevcut Tutar (₺)</FormLabel>
+                      <FormLabel>{t("goals.currentAmount", "Mevcut Tutar (₺)")}</FormLabel>
                       <FormControl>
                         <Input type="number" min="0" step="0.01" {...field} />
                       </FormControl>
@@ -295,7 +296,7 @@ const Goals = () => {
                 
                 <DialogFooter>
                   <Button type="submit" disabled={updateGoalMutation.isPending}>
-                    {updateGoalMutation.isPending ? "Güncelleniyor..." : "Güncelle"}
+                    {updateGoalMutation.isPending ? t("common.loading", "Güncelleniyor...") : t("common.save", "Güncelle")}
                   </Button>
                 </DialogFooter>
               </form>
@@ -312,8 +313,8 @@ const Goals = () => {
               <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center mb-3">
                 <PiggyBank className="h-6 w-6 text-blue-600" />
               </div>
-              <h3 className="font-medium">Birikim</h3>
-              <p className="text-sm text-gray-600">Uzun vadeli biriktirme</p>
+              <h3 className="font-medium">{t("goals.categories.savings", "Birikim")}</h3>
+              <p className="text-sm text-gray-600">{t("goals.categories.savingsDesc", "Uzun vadeli biriktirme")}</p>
             </div>
           </CardContent>
         </Card>
@@ -324,8 +325,8 @@ const Goals = () => {
               <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center mb-3">
                 <Presentation className="h-6 w-6 text-green-600" />
               </div>
-              <h3 className="font-medium">Yatırım</h3>
-              <p className="text-sm text-gray-600">Finansal büyüme</p>
+              <h3 className="font-medium">{t("goals.categories.investment", "Yatırım")}</h3>
+              <p className="text-sm text-gray-600">{t("goals.categories.investmentDesc", "Finansal büyüme")}</p>
             </div>
           </CardContent>
         </Card>
@@ -336,8 +337,8 @@ const Goals = () => {
               <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center mb-3">
                 <Calendar className="h-6 w-6 text-amber-600" />
               </div>
-              <h3 className="font-medium">Kısa Vadeli</h3>
-              <p className="text-sm text-gray-600">Yakın dönem hedefler</p>
+              <h3 className="font-medium">{t("goals.categories.shortTerm", "Kısa Vadeli")}</h3>
+              <p className="text-sm text-gray-600">{t("goals.categories.shortTermDesc", "Yakın dönem hedefler")}</p>
             </div>
           </CardContent>
         </Card>
@@ -348,8 +349,8 @@ const Goals = () => {
               <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center mb-3">
                 <Award className="h-6 w-6 text-purple-600" />
               </div>
-              <h3 className="font-medium">Ödül</h3>
-              <p className="text-sm text-gray-600">Kendiniz için hedefler</p>
+              <h3 className="font-medium">{t("goals.categories.reward", "Ödül")}</h3>
+              <p className="text-sm text-gray-600">{t("goals.categories.rewardDesc", "Kendiniz için hedefler")}</p>
             </div>
           </CardContent>
         </Card>
@@ -358,7 +359,7 @@ const Goals = () => {
       {/* Goals List */}
       <Card>
         <CardHeader>
-          <CardTitle>Hedef Listesi</CardTitle>
+          <CardTitle>{t("goals.pageTitle", "Hedef Listesi")}</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -384,7 +385,7 @@ const Goals = () => {
                         <div>
                           <h3 className="font-medium">{goal.name}</h3>
                           <p className="text-sm text-gray-600">
-                            Oluşturulma: {new Date(goal.created_at).toLocaleDateString()}
+                            {t("goals.createdOn", "Oluşturulma")}: {new Date(goal.created_at).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
@@ -400,7 +401,7 @@ const Goals = () => {
                           variant="ghost"
                           size="icon"
                           onClick={() => {
-                            if (confirm("Bu hedefi silmek istediğinizden emin misiniz?")) {
+                            if (confirm(t("goals.confirmDelete", "Bu hedefi silmek istediğinizden emin misiniz?"))) {
                               deleteGoalMutation.mutate(goal.id);
                             }
                           }}
@@ -421,10 +422,10 @@ const Goals = () => {
                       />
                       <div className="flex justify-between mt-2">
                         <span className="text-sm text-gray-600">
-                          {getProgressValue(goal.current_amount || 0, goal.target_amount)}% Tamamlandı
+                          {getProgressValue(goal.current_amount || 0, goal.target_amount)}% {t("goals.completed", "Tamamlandı")}
                         </span>
                         {getProgressValue(goal.current_amount || 0, goal.target_amount) >= 100 && (
-                          <span className="text-sm text-green-600 font-medium">Hedef Başarıldı!</span>
+                          <span className="text-sm text-green-600 font-medium">{t("goals.achieved", "Hedef Başarıldı!")}</span>
                         )}
                       </div>
                     </div>
@@ -435,12 +436,12 @@ const Goals = () => {
           ) : (
             <div className="text-center py-12">
               <Target className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-4 text-lg font-medium">Hedef Bulunamadı</h3>
+              <h3 className="mt-4 text-lg font-medium">{t("goals.noGoals", "Hedef Bulunamadı")}</h3>
               <p className="mt-2 text-gray-500">
-                İlk finansal hedefinizi ekleyerek başlayın
+                {t("goals.createFirstGoal", "İlk finansal hedefinizi ekleyerek başlayın")}
               </p>
               <Button className="mt-4" onClick={() => setDialogOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" /> Hedef Ekle
+                <Plus className="mr-2 h-4 w-4" /> {t("goals.addGoal", "Hedef Ekle")}
               </Button>
             </div>
           )}
@@ -449,30 +450,30 @@ const Goals = () => {
 
       {/* Tips Section */}
       <div className="mt-8 bg-gray-50 p-6 rounded-lg">
-        <h2 className="text-lg font-medium mb-4">Finansal Hedeflere Ulaşma İpuçları</h2>
+        <h2 className="text-lg font-medium mb-4">{t("goals.tipsSectionTitle", "Finansal Hedeflere Ulaşma İpuçları")}</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-white p-4 rounded-md">
-            <h3 className="font-medium mb-2">SMART Hedefler Belirleyin</h3>
+            <h3 className="font-medium mb-2">{t("goals.tips.smart.title", "SMART Hedefler Belirleyin")}</h3>
             <p className="text-sm text-gray-600">
-              Hedeflerinizi Spesifik, Ölçülebilir, Ulaşılabilir, İlgili ve Zamana Bağlı olarak belirleyin.
+              {t("goals.tips.smart.description", "Hedeflerinizi Spesifik, Ölçülebilir, Ulaşılabilir, İlgili ve Zamana Bağlı olarak belirleyin.")}
             </p>
           </div>
           <div className="bg-white p-4 rounded-md">
-            <h3 className="font-medium mb-2">Düzenli Ödemeler Planlayın</h3>
+            <h3 className="font-medium mb-2">{t("goals.tips.regularPayments.title", "Düzenli Ödemeler Planlayın")}</h3>
             <p className="text-sm text-gray-600">
-              Hedef hesabınıza otomatik düzenli ödemeler ayarlayarak tutarlı ilerleme sağlayın.
+              {t("goals.tips.regularPayments.description", "Hedef hesabınıza otomatik düzenli ödemeler ayarlayarak tutarlı ilerleme sağlayın.")}
             </p>
           </div>
           <div className="bg-white p-4 rounded-md">
-            <h3 className="font-medium mb-2">Beklenmeyen Gelirlerinizi Değerlendirin</h3>
+            <h3 className="font-medium mb-2">{t("goals.tips.extraIncome.title", "Beklenmeyen Gelirlerinizi Değerlendirin")}</h3>
             <p className="text-sm text-gray-600">
-              Prim, ikramiye veya hediye paralarını hedeflerinize katkı olarak ekleyin.
+              {t("goals.tips.extraIncome.description", "Prim, ikramiye veya hediye paralarını hedeflerinize katkı olarak ekleyin.")}
             </p>
           </div>
           <div className="bg-white p-4 rounded-md">
-            <h3 className="font-medium mb-2">İlerlemenizi Görselleştirin</h3>
+            <h3 className="font-medium mb-2">{t("goals.tips.visualize.title", "İlerlemenizi Görselleştirin")}</h3>
             <p className="text-sm text-gray-600">
-              İlerleme çizelgeleri veya görsel hatırlatıcılar kullanarak motivasyonunuzu yüksek tutun.
+              {t("goals.tips.visualize.description", "İlerleme çizelgeleri veya görsel hatırlatıcılar kullanarak motivasyonunuzu yüksek tutun.")}
             </p>
           </div>
         </div>

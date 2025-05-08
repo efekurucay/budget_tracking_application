@@ -1,0 +1,334 @@
+{
+  "common": {
+    "loading": "Yükleniyor...",
+    "save": "Kaydet",
+    "cancel": "İptal",
+    "delete": "Sil",
+    "edit": "Düzenle",
+    "add": "Ekle",
+    "success": "Başarılı",
+    "error": "Hata",
+    "warning": "Uyarı",
+    "welcome": "Hoş Geldiniz",
+    "viewAll": "Tümünü Gör",
+    "retry": "Tekrar Dene",
+    "errorUnknown": "Bilinmeyen bir hata oluştu.",
+    "refreshing": "Veriler yenileniyor...",
+    "authNotReady": "Yenilenemedi, kimlik doğrulama hazır değil",
+    "uncategorized": "Kategorisiz"
+  },
+  "auth": {
+    "login": "Giriş Yap",
+    "signup": "Kayıt Ol",
+    "logout": "Çıkış Yap",
+    "email": "E-posta",
+    "password": "Şifre",
+    "firstName": "Ad",
+    "lastName": "Soyad",
+    "confirmPassword": "Şifreyi Doğrula",
+    "loginSuccess": "Giriş başarılı! Yönlendiriliyorsunuz...",
+    "loginFailed": "Giriş başarısız",
+    "signupSuccess": "Hesap başarıyla oluşturuldu! Doğrulama gerekliyse lütfen e-postanızı kontrol edin.",
+    "signupFailed": "Kayıt başarısız",
+    "logoutSuccess": "Çıkış yaptınız.",
+    "checking": "Kimlik doğrulanıyor...",
+    "pleaseSignIn": "Devam etmek için lütfen giriş yapın"
+  },
+  "budget": {
+    "pageTitle": "Bütçe Yönetimi",
+    "addCategory": "Bütçe Kategorisi Ekle",
+    "categoryName": "Kategori Adı",
+    "monthlyBudget": "Aylık Bütçe (₺)",
+    "categoryColor": "Kategori Rengi",
+    "budgetOverview": "Toplam Bütçe Görünümü",
+    "spent": "Kullanıldı",
+    "remaining": "Kalan",
+    "errors": {
+      "nameRequired": "Kategori adı gereklidir",
+      "amountPositive": "Bütçe tutarı pozitif olmalıdır"
+    },
+    "actions": {
+      "categoryAdded": "Bütçe kategorisi başarıyla eklendi",
+      "categoryUpdated": "Bütçe kategorisi başarıyla güncellendi",
+      "categoryDeleted": "Bütçe kategorisi başarıyla silindi"
+    },
+    "addCategoryDescription": "Harcamalarınızı takip etmek için yeni bir bütçe kategorisi oluşturun."
+  },
+  "goals": {
+    "pageTitle": "Finansal Hedefler",
+    "addGoal": "Hedef Ekle",
+    "goalName": "Hedef Adı",
+    "targetAmount": "Hedef Tutar (₺)",
+    "startingAmount": "Başlangıç Tutar (₺)",
+    "currentAmount": "Mevcut Tutar",
+    "completed": "tamamlandı",
+    "progress": "İlerleme",
+    "createdOn": "Oluşturulma",
+    "achieved": "Hedef Başarıldı!",
+    "confirmDelete": "Bu hedefi silmek istediğinizden emin misiniz?",
+    "tipsSectionTitle": "Finansal Hedeflere Ulaşma İpuçları",
+    "categories": {
+      "savings": "Birikim",
+      "savingsDesc": "Uzun vadeli biriktirme",
+      "investment": "Yatırım",
+      "investmentDesc": "Finansal büyüme",
+      "shortTerm": "Kısa Vadeli",
+      "shortTermDesc": "Yakın dönem hedefler",
+      "reward": "Ödül",
+      "rewardDesc": "Kendiniz için hedefler"
+    },
+    "tips": {
+      "smart": {
+        "title": "SMART Hedefler Belirleyin",
+        "description": "Hedeflerinizi Spesifik, Ölçülebilir, Ulaşılabilir, İlgili ve Zamana Bağlı olarak belirleyin."
+      },
+      "regularPayments": {
+        "title": "Düzenli Ödemeler Planlayın",
+        "description": "Hedef hesabınıza otomatik düzenli ödemeler ayarlayarak tutarlı ilerleme sağlayın."
+      },
+      "extraIncome": {
+        "title": "Beklenmeyen Gelirlerinizi Değerlendirin",
+        "description": "Prim, ikramiye veya hediye paralarını hedeflerinize katkı olarak ekleyin."
+      },
+      "visualize": {
+        "title": "İlerlemenizi Görselleştirin",
+        "description": "İlerleme çizelgeleri veya görsel hatırlatıcılar kullanarak motivasyonunuzu yüksek tutun."
+      }
+    },
+    "errors": {
+      "nameRequired": "Hedef adı gereklidir",
+      "targetPositive": "Hedef tutar pozitif olmalıdır",
+      "startingValid": "Başlangıç tutarı geçerli olmalı ve hedeften küçük olmalıdır"
+    },
+    "actions": {
+      "goalAdded": "Hedef başarıyla eklendi",
+      "goalUpdated": "Hedef başarıyla güncellendi",
+      "goalDeleted": "Hedef başarıyla silindi"
+    },
+    "noGoals": "Hedef Bulunamadı",
+    "createFirstGoal": "İlk finansal hedefinizi oluşturun."
+  },
+  "group": {
+    "pageTitle": "Gruplar",
+    "detailTitle": "Grup Detayları",
+    "createGroup": "Grup Oluştur",
+    "joinGroup": "Gruba Katıl",
+    "groupName": "Grup Adı",
+    "groupDescription": "Açıklama",
+    "members": "Üyeler",
+    "transactions": "İşlemler",
+    "settings": "Ayarlar",
+    "inviteMembers": "Üye Davet Et",
+    "inviteEmail": "Davet Edilecek E-posta Adresi",
+    "sendInvite": "Davet Gönder",
+    "addTransaction": "İşlem Ekle",
+    "transactionDescription": "Açıklama",
+    "transactionAmount": "Tutar",
+    "transactionDate": "Tarih",
+    "transactionType": "Tür",
+    "expense": "Gider",
+    "income": "Gelir",
+    "transactionCategory": "Kategori",
+    "transactionMembers": "Üyelere Ata",
+    "selectAll": "Hepsini Seç",
+    "leaveGroup": "Gruptan Ayrıl",
+    "deleteGroup": "Grubu Sil",
+    "editGroup": "Grup Bilgilerini Düzenle",
+    "categories": {
+      "food": "Yiyecek",
+      "transport": "Ulaşım",
+      "entertainment": "Eğlence",
+      "shopping": "Alışveriş",
+      "utilities": "Faturalar",
+      "housing": "Konaklama",
+      "health": "Sağlık",
+      "education": "Eğitim",
+      "other": "Diğer"
+    },
+    "actions": {
+      "groupCreated": "Grup başarıyla oluşturuldu",
+      "groupJoined": "Gruba başarıyla katıldınız",
+      "groupLeft": "Gruptan ayrıldınız",
+      "groupDeleted": "Grup silindi",
+      "groupUpdated": "Grup bilgileri güncellendi",
+      "memberRemoved": "Üye gruptan çıkarıldı",
+      "inviteSent": "Davet başarıyla gönderildi",
+      "transactionAdded": "İşlem başarıyla eklendi",
+      "groupIdCopied": "Grup ID'si panoya kopyalandı"
+    },
+    "errors": {
+      "invalidGroup": "Geçersiz grup ID",
+      "notAuthorized": "Bu işlem için yetkiniz yok",
+      "inviteFailure": "Davet gönderme başarısız oldu"
+    }
+  },
+  "transactions": {
+    "pageTitle": "İşlemler",
+    "addTransaction": "İşlem Ekle",
+    "income": "Gelir",
+    "expense": "Gider",
+    "all": "Tümü",
+    "description": "Açıklama",
+    "amount": "Tutar",
+    "date": "Tarih",
+    "category": "Kategori",
+    "search": "İşlemleri ara...",
+    "noTransactions": "İşlem Bulunamadı",
+    "actions": {
+      "transactionAdded": "İşlem başarıyla eklendi",
+      "transactionDeleted": "İşlem başarıyla silindi"
+    },
+    "transaction": "İşlem",
+    "addFirstTransaction": "İşlem sayfasını ziyaret ederek ilk işleminizi ekleyin."
+  },
+  "reports": {
+    "pageTitle": "Finansal Raporlar",
+    "timeRanges": {
+      "7days": "Son 7 Gün",
+      "30days": "Son 30 Gün",
+      "90days": "Son 90 Gün",
+      "thisYear": "Bu Yıl",
+      "custom": "Özel Aralık"
+    },
+    "summary": {
+      "totalIncome": "Toplam Gelir",
+      "totalExpenses": "Toplam Gider",
+      "netBalance": "Net Bakiye",
+      "avgDailySpending": "Ort. Günlük Harcama"
+    },
+    "charts": {
+      "incomeVsExpenses": "Gelir ve Giderler",
+      "spendingByCategory": "Kategoriye Göre Harcama"
+    },
+    "viewReport": "Rapor Görüntüle"
+  },
+  "dashboard": {
+    "pageTitle": "Dashboard",
+    "welcome": "Hoş Geldiniz",
+    "hello": "Merhaba",
+    "recentTransactions": "Son İşlemler",
+    "goals": "Hedefleriniz",
+    "expensesTrend": "Gider Trendi",
+    "categoriesDistribution": "Gider Kategorileri",
+    "expensesByCategory": "Kategorilere göre giderler",
+    "quickActions": "Hızlı İşlemler",
+    "viewAll": "Tümünü Görüntüle",
+    "viewMore": "Daha Fazla",
+    "thisMonth": "Bu Ay",
+    "noData": "Veri bulunamadı",
+    "financialOverview": "Hesaplarınızın finansal özeti",
+    "refreshData": "Verileri Yenile",
+    "totalIncome": "Toplam Gelir",
+    "totalExpenses": "Toplam Gider",
+    "netBalance": "Net Bakiye",
+    "available": "Kullanılabilir",
+    "last30Days": "Son 30 gün",
+    "last6MonthsExpense": "Son 6 ayın gider dağılımı",
+    "loading": "Finansal özet yükleniyor..."
+  },
+  "notifications": {
+    "pageTitle": "Bildirimler",
+    "markAllAsRead": "Tümünü Okundu İşaretle",
+    "noNotifications": "Bildirim yok",
+    "types": {
+      "goal": "Hedef Başarısı",
+      "budget": "Bütçe Uyarısı",
+      "system": "Sistem Bildirimi"
+    },
+    "budgetReminder": "Bütçe Hatırlatıcı",
+    "budgetReminderDesc": "\"Yiyecek\" kategorisinde bütçe limitinizin %85'ine ulaştınız.",
+    "unexpectedTransaction": "Beklenmeyen İşlem",
+    "unexpectedTransactionDesc": "Son 24 saatte normal harcama tutarınızı aşan bir işlem tespit edildi."
+  },
+  "settings": {
+    "pageTitle": "Ayarlar",
+    "profile": "Profil Ayarları",
+    "notifications": "Bildirim Ayarları",
+    "security": "Güvenlik",
+    "preferences": "Tercihler",
+    "language": "Dil",
+    "currency": "Para Birimi",
+    "theme": "Tema",
+    "lightTheme": "Açık",
+    "darkTheme": "Koyu",
+    "systemTheme": "Sistem"
+  },
+  "aiAssistant": {
+    "pageTitle": "AI Finans Asistanı",
+    "proFeature": "Bu bir Pro özelliğidir",
+    "proFeatureTitle": "AI Finans Asistanı - Pro Özelliği",
+    "proFeatureDesc": "AI asistanımız ile kişiselleştirilmiş finansal tavsiyeler alın",
+    "proFeatureMessage": "AI Asistanı bir Pro özelliğidir. Bu özelliğe erişmek için lütfen yükseltin.",
+    "upgradeToPro": "Pro'ya Yükselt",
+    "askSomething": "Finanslarınızla ilgili bir şey sorun...",
+    "send": "Gönder",
+    "newConversation": "Yeni Konuşma",
+    "thinking": "Düşünüyor...",
+    "errorProcessing": "Üzgünüm, isteğinizi işleyemedim. Lütfen tekrar deneyin.",
+    "errorResponse": "Yanıt alınamadı. Lütfen tekrar deneyin.",
+    "errorMessage": "Üzgünüm, isteğinizi işlerken bir hata oluştu. Lütfen daha sonra tekrar deneyin.",
+    "history": "Geçmiş",
+    "conversationHistory": "Konuşma Geçmişi",
+    "subtitle": "Kişiselleştirilmiş finansal tavsiyeler ve rehberlik alın",
+    "welcomeMessage": "Merhaba! Ben G15 AI finans asistanınızım. Bugün finanslarınızla ilgili size nasıl yardımcı olabilirim?",
+    "howToMakeTheMost": "AI Asistanınızdan en iyi şekilde yararlanma",
+    "assistantDescription": "Finansal durumunuz hakkında sorular sorabilir, kişiselleştirilmiş tavsiyeler, bütçe önerileri ve daha fazlasını alabilirsiniz. AI, size özel rehberlik sunmak için hedefleriniz, son işlemleriniz ve bütçe kategorileriniz hakkında bilgi sahibidir.",
+    "benefits": {
+      "0": "AI destekli kişisel finans danışmanı",
+      "1": "Kişiselleştirilmiş bütçe önerileri",
+      "2": "Finansal hedef planlama desteği",
+      "3": "Yatırım stratejisi tavsiyeleri"
+    },
+    "suggestions": {
+      "title": "Önerilen sorular",
+      "items": {
+        "0": "Tasarruf alışkanlıklarımı nasıl geliştirebilirim?",
+        "1": "Borçlarımı ödemenin en iyi yolu nedir?",
+        "2": "Yatırıma nasıl başlamalıyım?",
+        "3": "Harcama modellerimi analiz et",
+        "4": "Benim için bir bütçe planı oluştur",
+        "5": "Ev kredisi peşinatı için nasıl para biriktirebilirim?"
+      },
+      "general": {
+        "0": "Nasıl bütçe oluşturabilirim?",
+        "1": "İyi tasarruf stratejileri nelerdir?",
+        "2": "Harcamalarımı nasıl azaltabilirim?"
+      }
+    }
+  },
+  "upgrade": {
+    "pageTitle": "Pro'ya Yükselt",
+    "features": "Pro Özellikleri",
+    "aiAssistant": "AI Finans Asistanı",
+    "advancedReports": "Gelişmiş Raporlar ve Analizler",
+    "unlimitedGoals": "Sınırsız Finansal Hedef",
+    "prioritySupport": "Öncelikli Destek",
+    "monthlyPrice": "Aylık Fiyat",
+    "yearlyPrice": "Yıllık Fiyat",
+    "upgradeNow": "Şimdi Yükselt",
+    "currentPlan": "Mevcut Plan",
+    "paymentProcessing": "Ödeme İşleniyor...",
+    "paymentSuccess": "Ödeme Başarılı!",
+    "paymentError": "Ödeme Başarısız",
+    "usePoints": "İndirim için puanlarımı kullan",
+    "proFeatures": "Pro Özellikler",
+    "upgrade": "Yükselt",
+    "aiAdvisor": "AI Finans Danışmanı",
+    "aiAdvisorDesc": "Kişiselleştirilmiş finansal tavsiyeler alın ve harcama alışkanlıklarınızı optimize edin.",
+    "upgradeToPro": "Pro'ya Yükselt"
+  },
+  "months": {
+    "january": "Oca",
+    "february": "Şub",
+    "march": "Mar",
+    "april": "Nis",
+    "may": "May",
+    "june": "Haz",
+    "july": "Tem",
+    "august": "Ağu",
+    "september": "Eyl",
+    "october": "Eki",
+    "november": "Kas",
+    "december": "Ara"
+  }
+} 

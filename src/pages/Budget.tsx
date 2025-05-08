@@ -1,7 +1,7 @@
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/ui/sonner";
+import { useTranslation } from "react-i18next";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,18 +55,22 @@ interface BudgetTransaction {
 }
 
 // Form validation schema
-const budgetSchema = z.object({
-  name: z.string().min(1, "Kategori adı gereklidir"),
-  budget_amount: z.coerce.number().positive("Bütçe tutarı pozitif olmalıdır"),
+const createBudgetSchema = (t: any) => z.object({
+  name: z.string().min(1, t("budget.errors.nameRequired", "Category name is required")),
+  budget_amount: z.coerce.number().positive(t("budget.errors.amountPositive", "Budget amount must be positive")),
   color: z.string().optional(),
 });
 
 const Budget = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<BudgetCategory | null>(null);
   const queryClient = useQueryClient();
+
+  // Create the schema with translations
+  const budgetSchema = createBudgetSchema(t);
 
   // Pre-defined colors for budget categories
   const categoryColors = [
@@ -94,7 +98,7 @@ const Budget = () => {
         .order("name");
       
       if (error) {
-        toast.error("Bütçe kategorileri yüklenirken bir hata oluştu");
+        toast.error(t("common.error", "Error loading budget categories"));
         throw error;
       }
       
@@ -113,7 +117,7 @@ const Budget = () => {
         .eq("type", "expense");
       
       if (error) {
-        toast.error("İşlemler yüklenirken bir hata oluştu");
+        toast.error(t("common.error", "Error loading transactions"));
         throw error;
       }
       
@@ -139,7 +143,7 @@ const Budget = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["budget-categories"] });
-      toast.success("Bütçe kategorisi başarıyla eklendi");
+      toast.success(t("budget.actions.categoryAdded", "Budget category added successfully"));
       setDialogOpen(false);
       form.reset({
         name: "",
@@ -148,7 +152,7 @@ const Budget = () => {
       });
     },
     onError: (error) => {
-      toast.error(`Bütçe kategorisi eklenirken bir hata oluştu: ${error.message}`);
+      toast.error(t("common.error", "Error adding budget category: ") + error.message);
     },
   });
 
@@ -166,12 +170,12 @@ const Budget = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["budget-categories"] });
-      toast.success("Bütçe kategorisi başarıyla güncellendi");
+      toast.success(t("budget.actions.categoryUpdated", "Budget category updated successfully"));
       setEditDialogOpen(false);
       setSelectedCategory(null);
     },
     onError: (error) => {
-      toast.error(`Bütçe kategorisi güncellenirken bir hata oluştu: ${error.message}`);
+      toast.error(t("common.error", "Error updating budget category: ") + error.message);
     },
   });
 
@@ -183,10 +187,10 @@ const Budget = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["budget-categories"] });
-      toast.success("Bütçe kategorisi başarıyla silindi");
+      toast.success(t("budget.actions.categoryDeleted", "Budget category deleted successfully"));
     },
     onError: (error) => {
-      toast.error(`Bütçe kategorisi silinirken bir hata oluştu: ${error.message}`);
+      toast.error(t("common.error", "Error deleting budget category: ") + error.message);
     },
   });
 
@@ -199,60 +203,55 @@ const Budget = () => {
 
   // Calculate spent amounts per category
   const calculateSpentAmounts = () => {
-    if (!transactions || !categories) return {};
+    if (!categories || !transactions) return {};
     
     const spentAmounts: Record<string, number> = {};
     
     categories.forEach(category => {
-      spentAmounts[category.name] = 0;
+      spentAmounts[category.id] = 0;
     });
     
     transactions.forEach(transaction => {
-      if (transaction.category && spentAmounts[transaction.category] !== undefined) {
-        spentAmounts[transaction.category] += transaction.amount;
+      const category = categories.find(cat => cat.name === transaction.category);
+      if (category && transaction.type === "expense") {
+        spentAmounts[category.id] = (spentAmounts[category.id] || 0) + transaction.amount;
       }
     });
     
     return spentAmounts;
   };
 
-  const spentAmounts = calculateSpentAmounts();
-
-  // Calculate percentage spent of budget
   const calculatePercentage = (spent: number, budget: number) => {
     if (budget <= 0) return 0;
-    return Math.min(Math.round((spent / budget) * 100), 100);
+    const percentage = (spent / budget) * 100;
+    return Math.min(percentage, 100); // Cap at 100%
   };
 
-  // Prepare data for pie chart
   const preparePieChartData = () => {
     if (!categories) return [];
-    
+
     return categories.map(category => ({
       name: category.name,
       value: category.budget_amount,
-      color: category.color || categoryColors[0],
+      color: category.color || "#CCCCCC",
     }));
   };
 
-  // Prepare data for budget vs spent bar chart
   const prepareBarChartData = () => {
     if (!categories) return [];
     
+    const spentAmounts = calculateSpentAmounts();
+    
     return categories.map(category => ({
       name: category.name,
-      budget: category.budget_amount,
-      spent: spentAmounts[category.name] || 0,
+      [t("budget.spent", "Spent")]: spentAmounts[category.id] || 0,
+      [t("budget.remaining", "Budget")]: category.budget_amount,
     }));
   };
 
-  const handleSubmit = form.handleSubmit((data) => {
-    if (selectedCategory) {
-      updateBudgetCategoryMutation.mutate({ ...data, id: selectedCategory.id });
-    } else {
-      addBudgetCategoryMutation.mutate(data);
-    }
-  });
+  const totalBudget = categories?.reduce((sum, category) => sum + category.budget_amount, 0) || 0;
+  const spentAmounts = calculateSpentAmounts();
+  const totalSpent = Object.values(spentAmounts).reduce((sum, amount) => sum + amount, 0);
 
   const openEditDialog = (category: BudgetCategory) => {
     setSelectedCategory(category);
@@ -264,253 +263,216 @@ const Budget = () => {
     setEditDialogOpen(true);
   };
 
-  // Calculate total budget and spent
-  const totalBudget = categories?.reduce((sum, category) => sum + category.budget_amount, 0) || 0;
-  const totalSpent = Object.values(spentAmounts).reduce((sum, amount) => sum + amount, 0);
-  const totalPercentage = calculatePercentage(totalSpent, totalBudget);
+  const handleAddSubmit = (values: z.infer<typeof budgetSchema>) => {
+    addBudgetCategoryMutation.mutate(values);
+  };
+
+  const handleEditSubmit = (values: z.infer<typeof budgetSchema>) => {
+    if (!selectedCategory) return;
+    
+    updateBudgetCategoryMutation.mutate({
+      ...values,
+      id: selectedCategory.id,
+    });
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirm(t("common.warning", "Are you sure you want to delete this category?"))) {
+      deleteBudgetCategoryMutation.mutate(id);
+    }
+  };
 
   return (
     <DashboardLayout>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Bütçe Yönetimi</h1>
-          <p className="text-gray-600">Harcamalarınızı kategorilere ayırın ve takip edin</p>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">{t("budget.pageTitle", "Budget Management")}</h1>
+          
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                {t("budget.addCategory", "Add Budget Category")}
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{t("budget.addCategory", "Add Budget Category")}</DialogTitle>
+                <DialogDescription>
+                  {t("budget.addCategoryDescription", "Create a new budget category to track your expenses.")}
+                </DialogDescription>
+              </DialogHeader>
+              
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleAddSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t("budget.categoryName", "Category Name")}</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="budget_amount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t("budget.monthlyBudget", "Monthly Budget (₺)")}</FormLabel>
+                        <FormControl>
+                          <Input type="number" step="0.01" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="color"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t("budget.categoryColor", "Category Color")}</FormLabel>
+                        <FormControl>
+                          <div className="flex space-x-2">
+                            {categoryColors.map((color) => (
+                              <div
+                                key={color}
+                                className={`h-8 w-8 rounded-full cursor-pointer ${
+                                  field.value === color ? "ring-2 ring-offset-2 ring-g15-primary" : ""
+                                }`}
+                                style={{ backgroundColor: color }}
+                                onClick={() => form.setValue("color", color)}
+                              />
+                            ))}
+                          </div>
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <DialogFooter>
+                    <Button type="submit" disabled={addBudgetCategoryMutation.isPending}>
+                      {addBudgetCategoryMutation.isPending ? t("common.loading", "Saving...") : t("common.save", "Save")}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+          
+          <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{t("common.edit", "Edit")} {selectedCategory?.name}</DialogTitle>
+              </DialogHeader>
+              
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleEditSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t("budget.categoryName", "Category Name")}</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="budget_amount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t("budget.monthlyBudget", "Monthly Budget (₺)")}</FormLabel>
+                        <FormControl>
+                          <Input type="number" step="0.01" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="color"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t("budget.categoryColor", "Category Color")}</FormLabel>
+                        <FormControl>
+                          <div className="flex space-x-2">
+                            {categoryColors.map((color) => (
+                              <div
+                                key={color}
+                                className={`h-8 w-8 rounded-full cursor-pointer ${
+                                  field.value === color ? "ring-2 ring-offset-2 ring-g15-primary" : ""
+                                }`}
+                                style={{ backgroundColor: color }}
+                                onClick={() => form.setValue("color", color)}
+                              />
+                            ))}
+                          </div>
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <DialogFooter>
+                    <Button type="submit" disabled={updateBudgetCategoryMutation.isPending}>
+                      {updateBudgetCategoryMutation.isPending ? t("common.loading", "Saving...") : t("common.save", "Save")}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
         </div>
         
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" /> Bütçe Kategorisi Ekle
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Yeni Bütçe Kategorisi</DialogTitle>
-              <DialogDescription>
-                Yeni bir bütçe kategorisi ve aylık limit ekleyin.
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Kategori Adı</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Örnek: Yiyecek, Kira, Eğlence" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="budget_amount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Aylık Bütçe (₺)</FormLabel>
-                      <FormControl>
-                        <Input type="number" min="1" step="0.01" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="color"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Renk</FormLabel>
-                      <div className="grid grid-cols-5 gap-2">
-                        {categoryColors.map((color) => (
-                          <div
-                            key={color}
-                            onClick={() => form.setValue("color", color)}
-                            className={`h-8 w-8 rounded-full cursor-pointer border-2 ${
-                              field.value === color ? "border-black" : "border-transparent"
-                            }`}
-                            style={{ backgroundColor: color }}
-                          />
-                        ))}
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <DialogFooter>
-                  <Button 
-                    type="submit" 
-                    disabled={addBudgetCategoryMutation.isPending || updateBudgetCategoryMutation.isPending}
-                  >
-                    {selectedCategory 
-                      ? (updateBudgetCategoryMutation.isPending ? "Güncelleniyor..." : "Güncelle")
-                      : (addBudgetCategoryMutation.isPending ? "Ekleniyor..." : "Kategori Ekle")
-                    }
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-
-        {/* Edit Category Dialog */}
-        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Bütçe Kategorisini Düzenle</DialogTitle>
-              <DialogDescription>
-                {selectedCategory?.name} kategorisinin detaylarını güncelleyin.
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Kategori Adı</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="budget_amount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Aylık Bütçe (₺)</FormLabel>
-                      <FormControl>
-                        <Input type="number" min="1" step="0.01" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="color"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Renk</FormLabel>
-                      <div className="grid grid-cols-5 gap-2">
-                        {categoryColors.map((color) => (
-                          <div
-                            key={color}
-                            onClick={() => form.setValue("color", color)}
-                            className={`h-8 w-8 rounded-full cursor-pointer border-2 ${
-                              field.value === color ? "border-black" : "border-transparent"
-                            }`}
-                            style={{ backgroundColor: color }}
-                          />
-                        ))}
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <DialogFooter>
-                  <Button 
-                    type="submit" 
-                    disabled={updateBudgetCategoryMutation.isPending}
-                  >
-                    {updateBudgetCategoryMutation.isPending ? "Güncelleniyor..." : "Güncelle"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Budget Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <Card className="col-span-1 md:col-span-2">
-          <CardHeader className="pb-3">
-            <CardTitle>Toplam Bütçe Görünümü</CardTitle>
-            <CardDescription>
-              Bu ay için toplam bütçe durumunuz
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-4">
-              <div className="flex justify-between mb-1">
-                <span className="text-sm text-gray-600">Harcanan: {formatCurrency(totalSpent)}</span>
-                <span className="text-sm text-gray-600">Toplam Bütçe: {formatCurrency(totalBudget)}</span>
-              </div>
-              <Progress
-                value={totalPercentage}
-                className="h-3"
-                style={{
-                  backgroundColor: "#e5e7eb",
-                  backgroundImage: `linear-gradient(to right, ${
-                    totalPercentage < 70 ? "#22c55e" : 
-                    totalPercentage < 90 ? "#eab308" : 
-                    "#ef4444"
-                  }, ${
-                    totalPercentage < 70 ? "#22c55e" : 
-                    totalPercentage < 90 ? "#eab308" : 
-                    "#ef4444"
-                  } ${totalPercentage}%, #e5e7eb ${totalPercentage}%)`
-                }}
-              />
-              <div className="flex justify-between mt-1">
-                <span className="text-sm font-medium">{totalPercentage}% Kullanıldı</span>
-                <span className="text-sm font-medium">
-                  Kalan: {formatCurrency(totalBudget - totalSpent)}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 pt-2">
-              <AlertCircle className="h-5 w-5 text-amber-500" />
-              <p className="text-sm text-gray-600">
-                {totalPercentage >= 90 
-                  ? "Dikkat: Toplam bütçenizin %90'ını kullandınız!"
-                  : totalPercentage >= 70
-                    ? "Uyarı: Toplam bütçenizin %70'ini kullandınız."
-                    : "Bütçe durumunuz iyi görünüyor. Bu tempoda devam edin."
-                }
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
+        {/* Budget Overview Card */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <PieChart className="h-5 w-5 mr-2" />
-              <span>Bütçe Dağılımı</span>
-            </CardTitle>
+            <CardTitle>{t("budget.budgetOverview", "Total Budget Overview")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-64">
-              {isLoadingCategories ? (
-                <div className="h-full flex items-center justify-center">
-                  <p>Yükleniyor...</p>
+            <div className="flex flex-col md:flex-row md:space-x-8">
+              <div className="w-full md:w-1/2 space-y-2">
+                <div className="flex justify-between items-center mb-2">
+                  <div>
+                    <p className="text-sm text-gray-500">{t("budget.spent", "Spent")}</p>
+                    <p className="text-2xl font-bold">{formatCurrency(totalSpent)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-gray-500">{t("budget.remaining", "Remaining")}</p>
+                    <p className="text-2xl font-bold">{formatCurrency(Math.max(0, totalBudget - totalSpent))}</p>
+                  </div>
                 </div>
-              ) : categories && categories.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
+                <Progress value={calculatePercentage(totalSpent, totalBudget)} className="h-4" />
+                <p className="text-sm text-center">
+                  {formatCurrency(totalSpent)} / {formatCurrency(totalBudget)} 
+                  ({Math.round(calculatePercentage(totalSpent, totalBudget))}%)
+                </p>
+              </div>
+              
+              <div className="w-full md:w-1/2 mt-6 md:mt-0">
+                <ResponsiveContainer width="100%" height={200}>
                   <RechartsPieChart>
                     <Pie
                       data={preparePieChartData()}
+                      dataKey="value"
+                      nameKey="name"
                       cx="50%"
                       cy="50%"
-                      labelLine={false}
                       outerRadius={80}
-                      dataKey="value"
                       label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                     >
                       {preparePieChartData().map((entry, index) => (
@@ -520,191 +482,106 @@ const Budget = () => {
                     <Tooltip formatter={(value) => formatCurrency(Number(value))} />
                   </RechartsPieChart>
                 </ResponsiveContainer>
-              ) : (
-                <div className="h-full flex flex-col items-center justify-center">
-                  <FilePieChart className="h-12 w-12 text-gray-300 mb-2" />
-                  <p className="text-gray-500">Henüz bütçe kategorisi eklenmemiş</p>
-                </div>
-              )}
+              </div>
             </div>
           </CardContent>
         </Card>
-
+        
+        {/* Budget Categories List */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <BarChart3 className="h-5 w-5 mr-2" />
-              <span>Bütçe ve Harcama Karşılaştırma</span>
-            </CardTitle>
+            <CardTitle>{t("budget.categories", "Budget Categories")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-64">
-              {isLoadingCategories || isLoadingTransactions ? (
-                <div className="h-full flex items-center justify-center">
-                  <p>Yükleniyor...</p>
-                </div>
-              ) : categories && categories.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={prepareBarChartData()}
-                    layout="vertical"
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" />
-                    <YAxis type="category" dataKey="name" width={80} />
-                    <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                    <Legend />
-                    <Bar dataKey="budget" name="Bütçe" fill="#8884d8" />
-                    <Bar dataKey="spent" name="Harcama" fill="#82ca9d" />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-full flex flex-col items-center justify-center">
-                  <BarChart3 className="h-12 w-12 text-gray-300 mb-2" />
-                  <p className="text-gray-500">Karşılaştırma için veri yok</p>
-                </div>
-              )}
+            {isLoadingCategories ? (
+              <div className="text-center py-4">{t("common.loading", "Loading...")}</div>
+            ) : !categories?.length ? (
+              <div className="text-center py-4 text-gray-500">
+                <AlertCircle className="h-10 w-10 mx-auto mb-2" />
+                <p>{t("budget.noCategories", "No budget categories found. Create your first category.")}</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {categories.map((category) => {
+                  const spent = spentAmounts[category.id] || 0;
+                  const remaining = Math.max(0, category.budget_amount - spent);
+                  const percentage = calculatePercentage(spent, category.budget_amount);
+                  
+                  return (
+                    <div key={category.id} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center">
+                          <div
+                            className="w-3 h-3 rounded-full mr-2"
+                            style={{ backgroundColor: category.color || "#CCCCCC" }}
+                          />
+                          <h3 className="font-medium">{category.name}</h3>
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditDialog(category)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(category.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-between items-center text-sm mb-1">
+                        <span>{t("budget.spent", "Spent")}: {formatCurrency(spent)}</span>
+                        <span>{t("budget.remaining", "Remaining")}: {formatCurrency(remaining)}</span>
+                      </div>
+                      
+                      <Progress
+                        value={percentage}
+                        className={`h-2 ${
+                          percentage >= 90 ? "bg-red-200" : percentage >= 75 ? "bg-amber-200" : "bg-gray-200"
+                        }`}
+                        indicatorClassName={
+                          percentage >= 90 ? "bg-red-500" : percentage >= 75 ? "bg-amber-500" : ""
+                        }
+                      />
+                      
+                      <div className="text-xs text-right mt-1">
+                        {formatCurrency(spent)} / {formatCurrency(category.budget_amount)} ({Math.round(percentage)}%)
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        
+        {/* Budget vs Spent Bar Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("budget.comparisonChart", "Budget vs Spending by Category")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={prepareBarChartData()} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" tickFormatter={(value) => formatCurrency(value)} />
+                  <YAxis dataKey="name" type="category" width={100} />
+                  <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                  <Legend />
+                  <Bar dataKey={t("budget.spent", "Spent")} fill="#FF6384" />
+                  <Bar dataKey={t("budget.remaining", "Budget")} fill="#36A2EB" />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
-      </div>
-
-      {/* Budget Categories List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Bütçe Kategorileri</CardTitle>
-          <CardDescription>
-            Aylık bütçe limitleriniz ve harcamalarınız
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoadingCategories ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="h-16 bg-gray-100 animate-pulse rounded-md"
-                ></div>
-              ))}
-            </div>
-          ) : categories && categories.length > 0 ? (
-            <div className="space-y-6">
-              {categories.map((category) => {
-                const spent = spentAmounts[category.name] || 0;
-                const percentage = calculatePercentage(spent, category.budget_amount);
-                
-                return (
-                  <div key={category.id} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div
-                          className="w-4 h-4 rounded-full mr-2"
-                          style={{ backgroundColor: category.color || "#000" }}
-                        />
-                        <span className="font-medium">{category.name}</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEditDialog(category)}
-                        >
-                          <Pencil size={16} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            if (confirm(`"${category.name}" kategorisini silmek istediğinizden emin misiniz?`)) {
-                              deleteBudgetCategoryMutation.mutate(category.id);
-                            }
-                          }}
-                        >
-                          <Trash2 size={16} />
-                        </Button>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between mb-1">
-                        <span className="text-sm text-gray-600">
-                          Harcanan: {formatCurrency(spent)}
-                        </span>
-                        <span className="text-sm text-gray-600">
-                          Bütçe: {formatCurrency(category.budget_amount)}
-                        </span>
-                      </div>
-                      <Progress
-                        value={percentage}
-                        className="h-2"
-                        style={{
-                          backgroundColor: "#e5e7eb",
-                          backgroundImage: `linear-gradient(to right, ${
-                            percentage < 70 ? "#22c55e" : 
-                            percentage < 90 ? "#eab308" : 
-                            "#ef4444"
-                          }, ${
-                            percentage < 70 ? "#22c55e" : 
-                            percentage < 90 ? "#eab308" : 
-                            "#ef4444"
-                          } ${percentage}%, #e5e7eb ${percentage}%)`
-                        }}
-                      />
-                      <div className="flex justify-between mt-1">
-                        <span className="text-xs">{percentage}% Kullanıldı</span>
-                        <span className="text-xs">
-                          Kalan: {formatCurrency(category.budget_amount - spent)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <PieChart className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-4 text-lg font-medium">Kategori Bulunamadı</h3>
-              <p className="mt-2 text-gray-500">
-                İlk bütçe kategorinizi ekleyerek başlayın
-              </p>
-              <Button className="mt-4" onClick={() => setDialogOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" /> Kategori Ekle
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Budget Tips */}
-      <div className="mt-8 bg-gray-50 p-6 rounded-lg">
-        <h2 className="text-lg font-medium mb-4">Bütçe Yönetimi İpuçları</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white p-4 rounded-md">
-            <h3 className="font-medium mb-2">50/30/20 Kuralını Uygulayın</h3>
-            <p className="text-sm text-gray-600">
-              Gelirinizin %50'sini ihtiyaçlara, %30'unu isteklere ve %20'sini tasarrufa ayırın.
-            </p>
-          </div>
-          <div className="bg-white p-4 rounded-md">
-            <h3 className="font-medium mb-2">Düzenli Bütçe İncelemeleri Yapın</h3>
-            <p className="text-sm text-gray-600">
-              Haftalık veya aylık olarak bütçenizi gözden geçirin ve gerekirse ayarlayın.
-            </p>
-          </div>
-          <div className="bg-white p-4 rounded-md">
-            <h3 className="font-medium mb-2">Acil Durum Fonu Oluşturun</h3>
-            <p className="text-sm text-gray-600">
-              Beklenmeyen durumlar için 3-6 aylık giderinizi karşılayacak bir fon biriktirin.
-            </p>
-          </div>
-          <div className="bg-white p-4 rounded-md">
-            <h3 className="font-medium mb-2">Kredi Kartı Borcunu Azaltın</h3>
-            <p className="text-sm text-gray-600">
-              Yüksek faizli borçları önceliklendirin ve düzenli ödeme planı oluşturun.
-            </p>
-          </div>
-        </div>
       </div>
     </DashboardLayout>
   );

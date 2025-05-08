@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useTranslation } from "react-i18next";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,6 +56,7 @@ type ConversationHistory = {
 };
 
 const AIAssistant = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -66,12 +68,12 @@ const AIAssistant = () => {
   const [showConversationList, setShowConversationList] = useState(false);
   
   const [suggestedPrompts] = useState([
-    "How can I improve my saving habits?",
-    "What's the best way to pay off debt?",
-    "How should I start investing?",
-    "Analyze my spending patterns",
-    "Create a budget plan for me",
-    "How can I save for a house down payment?"
+    t("aiAssistant.suggestions.items.0", "How can I improve my saving habits?"),
+    t("aiAssistant.suggestions.items.1", "What's the best way to pay off debt?"),
+    t("aiAssistant.suggestions.items.2", "How should I start investing?"),
+    t("aiAssistant.suggestions.items.3", "Analyze my spending patterns"),
+    t("aiAssistant.suggestions.items.4", "Create a budget plan for me"),
+    t("aiAssistant.suggestions.items.5", "How can I save for a house down payment?")
   ]);
 
   const form = useForm<z.infer<typeof messageSchema>>({
@@ -161,15 +163,15 @@ const AIAssistant = () => {
     const welcomeMessage = {
       id: "welcome-message",
       role: "assistant" as const,
-      content: "Hello! I'm your G15 AI financial assistant. How can I help you with your finances today?",
+      content: t("aiAssistant.welcomeMessage", "Hello! I'm your G15 AI financial assistant. How can I help you with your finances today?"),
       timestamp: new Date(),
       visualData: [
         {
           type: "suggestion" as const,
           data: [
-            "How do I create a budget?",
-            "What are good saving strategies?",
-            "How can I reduce my expenses?"
+            t("aiAssistant.suggestions.general.0", "How do I create a budget?"),
+            t("aiAssistant.suggestions.general.1", "What are good saving strategies?"),
+            t("aiAssistant.suggestions.general.2", "How can I reduce my expenses?")
           ]
         }
       ]
@@ -180,7 +182,7 @@ const AIAssistant = () => {
     // Create a new conversation
     const newConversation = {
       id: crypto.randomUUID(),
-      title: "New Conversation",
+      title: t("aiAssistant.newConversation", "New Conversation"),
       lastMessageDate: new Date(),
       messages: [welcomeMessage]
     };
@@ -296,7 +298,7 @@ const AIAssistant = () => {
   const handleSendMessage = async (data: z.infer<typeof messageSchema>) => {
     // Check if user is Pro
     if (isPro === false) {
-      toast.error("AI Assistant is a Pro feature. Please upgrade to access this feature.", {
+      toast.error(t("aiAssistant.proFeatureMessage", "AI Assistant is a Pro feature. Please upgrade to access this feature."), {
         duration: 5000,
       });
       return;
@@ -313,7 +315,7 @@ const AIAssistant = () => {
     const thinkingMessage: Message = {
       id: crypto.randomUUID(),
       role: "assistant",
-      content: "Thinking...",
+      content: t("aiAssistant.thinking", "Thinking..."),
       timestamp: new Date(),
       isLoading: true
     };
@@ -348,7 +350,7 @@ const AIAssistant = () => {
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: enhancedText || responseData.generatedText || "I'm sorry, I couldn't process your request. Please try again.",
+        content: enhancedText || responseData.generatedText || t("aiAssistant.errorProcessing", "I'm sorry, I couldn't process your request. Please try again."),
         timestamp: new Date(),
         visualData
       };
@@ -361,7 +363,7 @@ const AIAssistant = () => {
       
     } catch (error) {
       console.error("Error calling AI assistant:", error);
-      toast.error("Failed to get a response. Please try again.");
+      toast.error(t("aiAssistant.errorResponse", "Failed to get a response. Please try again."));
       
       // Remove the thinking message and add an error message
       const finalMessages = updatedMessages.filter(m => m.id !== thinkingMessage.id);
@@ -369,7 +371,7 @@ const AIAssistant = () => {
       const errorMessage: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: "I'm sorry, I encountered an error while processing your request. Please try again later.",
+        content: t("aiAssistant.errorMessage", "I'm sorry, I encountered an error while processing your request. Please try again later."),
         timestamp: new Date(),
       };
       
@@ -399,15 +401,15 @@ const AIAssistant = () => {
     const welcomeMessage = {
       id: "welcome-message-new",
       role: "assistant" as const,
-      content: "Hello! I'm your G15 AI financial assistant. How can I help you with your finances today?",
+      content: t("aiAssistant.welcomeMessage", "Hello! I'm your G15 AI financial assistant. How can I help you with your finances today?"),
       timestamp: new Date(),
       visualData: [
         {
           type: "suggestion" as const,
           data: [
-            "How do I create a budget?",
-            "What are good saving strategies?",
-            "How can I reduce my expenses?"
+            t("aiAssistant.suggestions.general.0", "How do I create a budget?"),
+            t("aiAssistant.suggestions.general.1", "What are good saving strategies?"),
+            t("aiAssistant.suggestions.general.2", "How can I reduce my expenses?")
           ]
         }
       ]
@@ -420,7 +422,7 @@ const AIAssistant = () => {
     // Create a new conversation object
     const newConversation = {
       id: newConversationId,
-      title: "New Conversation",
+      title: t("aiAssistant.newConversation", "New Conversation"),
       lastMessageDate: new Date(),
       messages: [welcomeMessage]
     };
@@ -504,7 +506,7 @@ const AIAssistant = () => {
         <div className="container mx-auto py-6">
           <div className="flex items-center justify-center h-64">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <span className="ml-2 text-lg">Loading...</span>
+            <span className="ml-2 text-lg">{t("common.loading", "Loading...")}</span>
           </div>
         </div>
       </DashboardLayout>
@@ -519,38 +521,38 @@ const AIAssistant = () => {
             <CardHeader>
               <CardTitle className="text-2xl flex items-center">
                 <SparkleIcon className="h-6 w-6 mr-2 text-primary" />
-                AI Financial Assistant - Pro Feature
+                {t("aiAssistant.proFeatureTitle", "AI Financial Assistant - Pro Feature")}
               </CardTitle>
               <CardDescription>
-                Unlock personalized financial advice with our AI assistant
+                {t("aiAssistant.proFeatureDesc", "Unlock personalized financial advice with our AI assistant")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-lg bg-muted p-6">
-                <h3 className="text-xl font-semibold mb-2">Upgrade to Pro to access:</h3>
+                <h3 className="text-xl font-semibold mb-2">{t("upgrade.upgradeToPro", "Upgrade to Pro to access:")}</h3>
                 <ul className="space-y-2">
                   <li className="flex items-start">
                     <span className="mr-2">✓</span>
-                    <span>Personal financial advisor powered by AI</span>
+                    <span>{t("aiAssistant.benefits.0", "Personal financial advisor powered by AI")}</span>
                   </li>
                   <li className="flex items-start">
                     <span className="mr-2">✓</span>
-                    <span>Personalized budget recommendations</span>
+                    <span>{t("aiAssistant.benefits.1", "Personalized budget recommendations")}</span>
                   </li>
                   <li className="flex items-start">
                     <span className="mr-2">✓</span>
-                    <span>Financial goal planning assistance</span>
+                    <span>{t("aiAssistant.benefits.2", "Financial goal planning assistance")}</span>
                   </li>
                   <li className="flex items-start">
                     <span className="mr-2">✓</span>
-                    <span>Investment strategy advice</span>
+                    <span>{t("aiAssistant.benefits.3", "Investment strategy advice")}</span>
                   </li>
                 </ul>
               </div>
             </CardContent>
             <CardFooter>
               <Button className="w-full" onClick={() => window.location.href = '/upgrade'}>
-                Upgrade to Pro
+                {t("upgrade.upgradeNow", "Upgrade to Pro")}
               </Button>
             </CardFooter>
           </Card>
@@ -565,8 +567,8 @@ const AIAssistant = () => {
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold">AI Financial Assistant</h1>
-              <p className="text-gray-600">Get personalized financial advice and guidance</p>
+              <h1 className="text-2xl font-bold">{t("aiAssistant.pageTitle", "AI Financial Assistant")}</h1>
+              <p className="text-gray-600">{t("aiAssistant.subtitle", "Get personalized financial advice and guidance")}</p>
             </div>
             <div className="flex space-x-2">
               <Button 
@@ -574,7 +576,7 @@ const AIAssistant = () => {
                 onClick={() => setShowConversationList(!showConversationList)}
                 className="flex items-center"
               >
-                History
+                {t("aiAssistant.history", "History")}
                 <ChevronDown className="ml-1 h-4 w-4" />
               </Button>
               <Button 
@@ -582,7 +584,7 @@ const AIAssistant = () => {
                 onClick={startNewConversation}
                 disabled={isProcessing}
               >
-                <RefreshCcw className="mr-2 h-4 w-4" /> New Conversation
+                <RefreshCcw className="mr-2 h-4 w-4" /> {t("aiAssistant.newConversation", "New Conversation")}
               </Button>
             </div>
           </div>
@@ -591,7 +593,7 @@ const AIAssistant = () => {
         {showConversationList && conversations.length > 1 && (
           <Card className="mb-4">
             <CardHeader className="py-3">
-              <CardTitle className="text-lg">Conversation History</CardTitle>
+              <CardTitle className="text-lg">{t("aiAssistant.conversationHistory", "Conversation History")}</CardTitle>
             </CardHeader>
             <CardContent className="py-0">
               <div className="space-y-1 max-h-64 overflow-y-auto">
@@ -651,7 +653,7 @@ const AIAssistant = () => {
                         {message.isLoading ? (
                           <div className="flex items-center">
                             <Loader2 className="h-4 w-4 animate-spin" />
-                            <span className="ml-2">Thinking...</span>
+                            <span className="ml-2">{t("aiAssistant.thinking", "Thinking...")}</span>
                           </div>
                         ) : (
                           <>
@@ -691,7 +693,7 @@ const AIAssistant = () => {
                     <FormItem className="flex-1">
                       <FormControl>
                         <Input
-                          placeholder="Type your message..."
+                          placeholder={t("aiAssistant.askSomething", "Type your message...")}
                           {...field}
                           disabled={isProcessing}
                           className="focus-visible:ring-1"
@@ -702,7 +704,7 @@ const AIAssistant = () => {
                 />
                 <Button type="submit" disabled={isProcessing}>
                   <Send className="h-4 w-4" />
-                  <span className="sr-only">Send</span>
+                  <span className="sr-only">{t("aiAssistant.send", "Send")}</span>
                 </Button>
               </form>
             </Form>
@@ -710,7 +712,7 @@ const AIAssistant = () => {
         </Card>
         
         <div className="mb-4">
-          <h3 className="text-sm font-medium mb-2">Suggested Questions</h3>
+          <h3 className="text-sm font-medium mb-2">{t("aiAssistant.suggestions.title", "Suggested Questions")}</h3>
           <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
             {suggestedPrompts.map((prompt) => (
               <Button
@@ -728,12 +730,11 @@ const AIAssistant = () => {
         
         <Card className="bg-muted/30">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">How to make the most of your AI Assistant</CardTitle>
+            <CardTitle className="text-sm">{t("aiAssistant.howToMakeTheMost", "How to make the most of your AI Assistant")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              You can ask about your financial situation, get personalized advice, budget suggestions, and more. 
-              The AI knows about your goals, recent transactions, and budget categories to give you tailored guidance.
+              {t("aiAssistant.assistantDescription", "You can ask about your financial situation, get personalized advice, budget suggestions, and more. The AI knows about your goals, recent transactions, and budget categories to give you tailored guidance.")}
             </p>
           </CardContent>
         </Card>

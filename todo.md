@@ -13,32 +13,51 @@
 - Consistent user interface created with DashboardLayout component
 - Data management optimization done with React Query
 - Auth state management and loading state handling improved for better reliability
-- Fixed navigation issues between Dashboard and Groups pages
-- Resolved infinite loading issues by improving Auth state handling
-- Created GroupDetail page for viewing and managing group details
-- Implemented navigation between Groups and GroupDetail pages
-- Added group operations (editing, deleting, leaving)
-- Created group transaction interface with mock functionality
-- Added user invitation and member management capabilities
-- Created `group_transactions` table in Supabase database
-- Implemented proper API integration for group transactions
-- Fixed Supabase RLS policies for transactions
-- Implemented proper error handling for network disconnections
-- Added RPC functions for secure group transaction operations
-- Added option for users to choose transaction categories
-- Allow assigning expenses to specific group members
-- Codebase indexed and analyzed for current task [08.11.2023]
-- Fixed infinite loading issue with improved AuthContext implementation [08.11.2023]
+- Fixed navigation issues with dashboard layout
+- Implemented CRUD operations for transactions, goals and budgets
+- Added transaction categories with color coding
+- Added expense tracking by category and trend analysis
+- Improved dashboard with interactive charts and statistics
+- Added user profile management
+- Set up SQL scripts for automatic notifications
+- Implemented internationalization (i18n) with English and Turkish language support
+- Added language switcher component
+- Created notifications system with database integration
+- Fixed TypeScript errors by updating Supabase types
+- Fixed React Hook errors in Dashboard component
+- Improved translation system by adding missing keys and ensuring consistent usage
+- Fixed Goals.tsx and AIAssistant.tsx components with proper translation support
 
-## Current Tasks
-- Implement expense settlement functionality for groups
+## Pending Tasks
+- Add social sharing options
+- Create mobile responsive optimizations
+- Add automated financial insights
+- Implement advanced filtering for transactions
 
-## Future Improvements
-- Create detailed financial reports for group expenses
-- Add notification system for group activities
-- Fine-tune UI components for better responsive behavior
-- Improve accessibility across all components
-- Invest in more comprehensive testing
+## Currently Working On
+- Fixing any remaining bugs and performance issues
+
+## Notes
+- UI elements use shadcn/ui component library
+- Backend uses Supabase for auth, database, and functions
+- Transactions and budget items should include categories
+- Pro features include AI assistant and group budgeting
+
+## In Progress
+- Group features to be completed (settlements, invitations)
+- AI Assistant features enhancement
+
+## Todo
+- Improve Reports page with more filtering options and comparative data
+- Complete onboarding data persistence
+- Code quality improvements (remove console.logs, improve error handling)
+- Add unit tests for critical functionality
+
+## Future Enhancements
+- Add more languages to i18n support
+- Integrate with financial APIs for real-time currency conversion
+- Implement PWA features for offline capability
+- Add mobile app version with React Native
 
 ## Main Features
 - User authentication (Supabase Auth)
@@ -73,6 +92,8 @@
 - [x] React hook ihlallerini gider ve performans sorunlarını çöz
 - [x] Kod tabanı indekslendi ve analiz edildi
 - [x] AuthContext.tsx içindeki sonsuz yükleme sorunlarını çöz
+- [x] Dashboard.tsx içindeki çeviri eksikliklerini düzelt
+- [x] Goals.tsx ve AIAssistant.tsx bileşenlerine çeviri desteği ekle
 
 ## Yapılacaklar
 

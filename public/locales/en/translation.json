@@ -1,0 +1,334 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "success": "Success",
+    "error": "Error",
+    "warning": "Warning",
+    "welcome": "Welcome",
+    "viewAll": "View All",
+    "retry": "Retry",
+    "errorUnknown": "An unknown error occurred.",
+    "refreshing": "Refreshing data...",
+    "authNotReady": "Cannot refresh, authentication not ready",
+    "uncategorized": "Uncategorized"
+  },
+  "auth": {
+    "login": "Login",
+    "signup": "Sign Up",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "confirmPassword": "Confirm Password",
+    "loginSuccess": "Login successful! Redirecting...",
+    "loginFailed": "Login failed",
+    "signupSuccess": "Account created successfully! Please check your email for verification if enabled.",
+    "signupFailed": "Signup failed",
+    "logoutSuccess": "You've been logged out.",
+    "checking": "Checking authentication...",
+    "pleaseSignIn": "Please sign in to continue"
+  },
+  "budget": {
+    "pageTitle": "Budget Management",
+    "addCategory": "Add Budget Category",
+    "categoryName": "Category Name",
+    "monthlyBudget": "Monthly Budget (₺)",
+    "categoryColor": "Category Color",
+    "budgetOverview": "Total Budget Overview",
+    "spent": "Spent",
+    "remaining": "Remaining",
+    "errors": {
+      "nameRequired": "Category name is required",
+      "amountPositive": "Budget amount must be positive"
+    },
+    "actions": {
+      "categoryAdded": "Budget category added successfully",
+      "categoryUpdated": "Budget category updated successfully",
+      "categoryDeleted": "Budget category deleted successfully"
+    },
+    "addCategoryDescription": "Create a new budget category to track your expenses."
+  },
+  "goals": {
+    "pageTitle": "Financial Goals",
+    "addGoal": "Add Goal",
+    "goalName": "Goal Name",
+    "targetAmount": "Target Amount (₺)",
+    "startingAmount": "Starting Amount (₺)",
+    "currentAmount": "Current Amount",
+    "completed": "completed",
+    "progress": "Progress",
+    "createdOn": "Created on",
+    "achieved": "Goal Achieved!",
+    "confirmDelete": "Are you sure you want to delete this goal?",
+    "tipsSectionTitle": "Tips for Achieving Financial Goals",
+    "categories": {
+      "savings": "Savings",
+      "savingsDesc": "Long-term saving",
+      "investment": "Investment",
+      "investmentDesc": "Financial growth",
+      "shortTerm": "Short Term",
+      "shortTermDesc": "Near-term goals",
+      "reward": "Reward",
+      "rewardDesc": "Goals for yourself"
+    },
+    "tips": {
+      "smart": {
+        "title": "Set SMART Goals",
+        "description": "Make your goals Specific, Measurable, Achievable, Relevant, and Time-bound."
+      },
+      "regularPayments": {
+        "title": "Plan Regular Payments",
+        "description": "Set up automatic regular payments to your goal account for consistent progress."
+      },
+      "extraIncome": {
+        "title": "Use Unexpected Income",
+        "description": "Add bonuses, gifts, or unexpected money as contributions to your goals."
+      },
+      "visualize": {
+        "title": "Visualize Your Progress",
+        "description": "Use progress charts or visual reminders to keep your motivation high."
+      }
+    },
+    "errors": {
+      "nameRequired": "Goal name is required",
+      "targetPositive": "Target amount must be positive",
+      "startingValid": "Starting amount must be valid and less than target"
+    },
+    "actions": {
+      "goalAdded": "Goal added successfully",
+      "goalUpdated": "Goal updated successfully",
+      "goalDeleted": "Goal deleted successfully"
+    },
+    "noGoals": "No Goals Found",
+    "createFirstGoal": "Create your first financial goal."
+  },
+  "group": {
+    "pageTitle": "Groups",
+    "detailTitle": "Group Details",
+    "createGroup": "Create Group",
+    "joinGroup": "Join Group",
+    "groupName": "Group Name",
+    "groupDescription": "Description",
+    "members": "Members",
+    "transactions": "Transactions",
+    "settings": "Settings",
+    "inviteMembers": "Invite Members",
+    "inviteEmail": "Email Address to Invite",
+    "sendInvite": "Send Invite",
+    "addTransaction": "Add Transaction",
+    "transactionDescription": "Description",
+    "transactionAmount": "Amount",
+    "transactionDate": "Date",
+    "transactionType": "Type",
+    "expense": "Expense",
+    "income": "Income",
+    "transactionCategory": "Category",
+    "transactionMembers": "Assign to Members",
+    "selectAll": "Select All",
+    "leaveGroup": "Leave Group",
+    "deleteGroup": "Delete Group",
+    "editGroup": "Edit Group Details",
+    "categories": {
+      "food": "Food",
+      "transport": "Transport",
+      "entertainment": "Entertainment",
+      "shopping": "Shopping",
+      "utilities": "Utilities",
+      "housing": "Housing",
+      "health": "Health",
+      "education": "Education",
+      "other": "Other"
+    },
+    "actions": {
+      "groupCreated": "Group created successfully",
+      "groupJoined": "Successfully joined the group",
+      "groupLeft": "You have left the group",
+      "groupDeleted": "Group has been deleted",
+      "groupUpdated": "Group details updated successfully",
+      "memberRemoved": "Member removed from group",
+      "inviteSent": "Invitation sent successfully",
+      "transactionAdded": "Transaction added successfully",
+      "groupIdCopied": "Group ID copied to clipboard"
+    },
+    "errors": {
+      "invalidGroup": "Invalid group ID",
+      "notAuthorized": "You are not authorized for this action",
+      "inviteFailure": "Failed to send invitation"
+    }
+  },
+  "transactions": {
+    "pageTitle": "Transactions",
+    "addTransaction": "Add Transaction",
+    "income": "Income",
+    "expense": "Expense",
+    "all": "All",
+    "description": "Description",
+    "amount": "Amount",
+    "date": "Date",
+    "category": "Category",
+    "search": "Search transactions...",
+    "noTransactions": "No Transactions Found",
+    "actions": {
+      "transactionAdded": "Transaction added successfully",
+      "transactionDeleted": "Transaction deleted successfully"
+    },
+    "transaction": "Transaction",
+    "addFirstTransaction": "Add your first transaction by visiting the transaction page."
+  },
+  "reports": {
+    "pageTitle": "Financial Reports",
+    "timeRanges": {
+      "7days": "Last 7 Days",
+      "30days": "Last 30 Days",
+      "90days": "Last 90 Days",
+      "thisYear": "This Year",
+      "custom": "Custom Range"
+    },
+    "summary": {
+      "totalIncome": "Total Income",
+      "totalExpenses": "Total Expenses",
+      "netBalance": "Net Balance",
+      "avgDailySpending": "Avg. Daily Spending"
+    },
+    "charts": {
+      "incomeVsExpenses": "Income vs Expenses",
+      "spendingByCategory": "Spending by Category"
+    },
+    "viewReport": "View Report"
+  },
+  "dashboard": {
+    "pageTitle": "Dashboard",
+    "welcome": "Welcome",
+    "hello": "Hello",
+    "recentTransactions": "Recent Transactions",
+    "goals": "Your Goals",
+    "expensesTrend": "Expenses Trend",
+    "categoriesDistribution": "Expense Categories",
+    "expensesByCategory": "Expenses by category",
+    "quickActions": "Quick Actions",
+    "viewAll": "View All",
+    "viewMore": "View More",
+    "thisMonth": "This Month",
+    "noData": "No data available",
+    "financialOverview": "Financial overview of your accounts",
+    "refreshData": "Refresh Data",
+    "totalIncome": "Total Income",
+    "totalExpenses": "Total Expenses",
+    "netBalance": "Net Balance",
+    "available": "Available",
+    "last30Days": "Last 30 days",
+    "last6MonthsExpense": "Last 6 months expense distribution",
+    "loading": "Loading your financial overview..."
+  },
+  "notifications": {
+    "pageTitle": "Notifications",
+    "markAllAsRead": "Mark All as Read",
+    "noNotifications": "No notifications",
+    "types": {
+      "goal": "Goal Achieved",
+      "budget": "Budget Alert",
+      "system": "System Notification"
+    },
+    "budgetReminder": "Budget Reminder",
+    "budgetReminderDesc": "You've reached 85% of your budget limit in the \"Food\" category.",
+    "unexpectedTransaction": "Unexpected Transaction",
+    "unexpectedTransactionDesc": "A transaction was detected that exceeded your normal spending amount in the last 24 hours."
+  },
+  "settings": {
+    "pageTitle": "Settings",
+    "profile": "Profile Settings",
+    "notifications": "Notification Settings",
+    "security": "Security",
+    "preferences": "Preferences",
+    "language": "Language",
+    "currency": "Currency",
+    "theme": "Theme",
+    "lightTheme": "Light",
+    "darkTheme": "Dark",
+    "systemTheme": "System"
+  },
+  "aiAssistant": {
+    "pageTitle": "AI Financial Assistant",
+    "proFeature": "This is a Pro feature",
+    "proFeatureTitle": "AI Financial Assistant - Pro Feature",
+    "proFeatureDesc": "Unlock personalized financial advice with our AI assistant",
+    "proFeatureMessage": "AI Assistant is a Pro feature. Please upgrade to access this feature.",
+    "upgradeToPro": "Upgrade to Pro",
+    "askSomething": "Ask me something about your finances...",
+    "send": "Send",
+    "newConversation": "New Conversation",
+    "thinking": "Thinking...",
+    "errorProcessing": "I'm sorry, I couldn't process your request. Please try again.",
+    "errorResponse": "Failed to get a response. Please try again.",
+    "errorMessage": "I'm sorry, I encountered an error while processing your request. Please try again later.",
+    "history": "History",
+    "conversationHistory": "Conversation History",
+    "subtitle": "Get personalized financial advice and guidance",
+    "welcomeMessage": "Hello! I'm your G15 AI financial assistant. How can I help you with your finances today?",
+    "howToMakeTheMost": "How to make the most of your AI Assistant",
+    "assistantDescription": "You can ask about your financial situation, get personalized advice, budget suggestions, and more. The AI knows about your goals, recent transactions, and budget categories to give you tailored guidance.",
+    "benefits": {
+      "0": "Personal financial advisor powered by AI",
+      "1": "Personalized budget recommendations",
+      "2": "Financial goal planning assistance",
+      "3": "Investment strategy advice"
+    },
+    "suggestions": {
+      "title": "Suggested questions",
+      "items": {
+        "0": "How can I improve my saving habits?",
+        "1": "What's the best way to pay off debt?",
+        "2": "How should I start investing?",
+        "3": "Analyze my spending patterns",
+        "4": "Create a budget plan for me",
+        "5": "How can I save for a house down payment?"
+      },
+      "general": {
+        "0": "How do I create a budget?",
+        "1": "What are good saving strategies?",
+        "2": "How can I reduce my expenses?"
+      }
+    }
+  },
+  "upgrade": {
+    "pageTitle": "Upgrade to Pro",
+    "features": "Pro Features",
+    "aiAssistant": "AI Financial Assistant",
+    "advancedReports": "Advanced Reports & Analytics",
+    "unlimitedGoals": "Unlimited Financial Goals",
+    "prioritySupport": "Priority Support",
+    "monthlyPrice": "Monthly Price",
+    "yearlyPrice": "Yearly Price",
+    "upgradeNow": "Upgrade Now",
+    "currentPlan": "Current Plan",
+    "paymentProcessing": "Processing Payment...",
+    "paymentSuccess": "Payment Successful!",
+    "paymentError": "Payment Failed",
+    "usePoints": "Use my points for discount",
+    "proFeatures": "Pro Features",
+    "upgrade": "Upgrade",
+    "aiAdvisor": "AI Financial Advisor",
+    "aiAdvisorDesc": "Get personalized financial advice and optimize your spending habits.",
+    "upgradeToPro": "Upgrade to Pro"
+  },
+  "months": {
+    "january": "Jan",
+    "february": "Feb",
+    "march": "Mar",
+    "april": "Apr",
+    "may": "May",
+    "june": "Jun",
+    "july": "Jul",
+    "august": "Aug",
+    "september": "Sep",
+    "october": "Oct",
+    "november": "Nov",
+    "december": "Dec"
+  }
+} 
