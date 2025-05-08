@@ -285,63 +285,6 @@ const AIAssistant = () => {
     }
   };
 
-  const saveConversation = async (updatedMessages: Message[]) => {
-    if (!user?.id || !currentConversationId) return;
-    
-    try {
-      // Son eklenen mesajı al
-      const lastMessage = updatedMessages[updatedMessages.length - 1];
-      
-      // Mesajı veritabanına kaydet
-      const { error: messageError } = await supabase
-        .from('ai_messages')
-        .insert({
-          conversation_id: currentConversationId,
-          role: lastMessage.role,
-          content: lastMessage.content,
-          timestamp: lastMessage.timestamp.toISOString(),
-          visual_data: lastMessage.visualData || null
-        });
-      
-      if (messageError) throw messageError;
-      
-      // Konuşmanın son güncelleme zamanını güncelle
-      const { error: conversationError } = await supabase
-        .from('ai_conversations')
-        .update({ 
-          updated_at: new Date().toISOString(),
-          // Eğer konuşma başlığı "Yeni Konuşma" ise ve en az 3 mesaj varsa başlığı güncelle
-          ...(updatedMessages.length >= 3 && conversations.find(c => c.id === currentConversationId)?.title === t("aiAssistant.newConversation", "Yeni Konuşma") ? {
-            title: updatedMessages[1].content.substring(0, 30) + "..."
-          } : {})
-        })
-        .eq('id', currentConversationId);
-      
-      if (conversationError) throw conversationError;
-      
-      // Konuşmalar listesini güncelle
-      const updatedConversations = conversations.map(conv => {
-        if (conv.id === currentConversationId) {
-          return {
-            ...conv,
-            lastMessageDate: new Date(),
-            messages: updatedMessages,
-            title: conv.title === t("aiAssistant.newConversation", "Yeni Konuşma") && updatedMessages.length >= 3 ? 
-              updatedMessages[1].content.substring(0, 30) + "..." : 
-              conv.title
-          };
-        }
-        return conv;
-      });
-      
-      setConversations(updatedConversations);
-      
-    } catch (error) {
-      console.error("Error saving conversation:", error);
-      toast.error(t("error.saving_conversation", "Konuşma kaydedilirken bir hata oluştu"));
-    }
-  };
-
   const enhanceAIResponse = (text: string) => {
     // Parse the response for any special formatting or data
     let visualData: any[] = [];
@@ -456,6 +399,16 @@ const AIAssistant = () => {
         await startNewConversation();
       }
       
+      // Önce kullanıcı mesajını kaydet
+      await supabase
+        .from('ai_messages')
+        .insert({
+          conversation_id: currentConversationId,
+          role: 'user',
+          content: userMessage.content,
+          timestamp: userMessage.timestamp.toISOString()
+        });
+      
       // Call the edge function
       const { data: responseData, error } = await supabase.functions.invoke("ai-finance-assistant", {
         body: { 
@@ -485,8 +438,45 @@ const AIAssistant = () => {
       const finalUpdatedMessages = [...finalMessages, assistantMessage];
       setMessages(finalUpdatedMessages);
       
-      // Save the conversation
-      saveConversation(finalUpdatedMessages);
+      // Asistan mesajını kaydet
+      await supabase
+        .from('ai_messages')
+        .insert({
+          conversation_id: currentConversationId,
+          role: 'assistant',
+          content: assistantMessage.content,
+          timestamp: assistantMessage.timestamp.toISOString(),
+          visual_data: assistantMessage.visualData || null
+        });
+      
+      // Konuşmanın son güncelleme zamanını güncelle
+      await supabase
+        .from('ai_conversations')
+        .update({ 
+          updated_at: new Date().toISOString(),
+          // Eğer konuşma başlığı "Yeni Konuşma" ise başlığı güncelle
+          ...(conversations.find(c => c.id === currentConversationId)?.title === t("aiAssistant.newConversation", "Yeni Konuşma") ? {
+            title: userMessage.content.substring(0, 30) + "..."
+          } : {})
+        })
+        .eq('id', currentConversationId);
+        
+      // Conversations listesini güncelle
+      const updatedConversations = conversations.map(conv => {
+        if (conv.id === currentConversationId) {
+          return {
+            ...conv,
+            lastMessageDate: new Date(),
+            messages: finalUpdatedMessages,
+            title: conv.title === t("aiAssistant.newConversation", "Yeni Konuşma") ? 
+              userMessage.content.substring(0, 30) + "..." : 
+              conv.title
+          };
+        }
+        return conv;
+      });
+      
+      setConversations(updatedConversations);
       
     } catch (error) {
       console.error("Error calling AI assistant:", error);
@@ -505,8 +495,41 @@ const AIAssistant = () => {
       const finalUpdatedMessages = [...finalMessages, errorMessage];
       setMessages(finalUpdatedMessages);
       
-      // Save the conversation even with error
-      saveConversation(finalUpdatedMessages);
+      // Hata mesajını kaydet
+      if (currentConversationId) {
+        try {
+          await supabase
+            .from('ai_messages')
+            .insert({
+              conversation_id: currentConversationId,
+              role: 'assistant',
+              content: errorMessage.content,
+              timestamp: errorMessage.timestamp.toISOString()
+            });
+            
+          // Konuşmanın son güncelleme zamanını yine de güncelle
+          await supabase
+            .from('ai_conversations')
+            .update({ updated_at: new Date().toISOString() })
+            .eq('id', currentConversationId);
+        } catch (saveError) {
+          console.error("Error saving error message:", saveError);
+        }
+      }
+      
+      // Conversations listesini güncelle
+      const updatedConversations = conversations.map(conv => {
+        if (conv.id === currentConversationId) {
+          return {
+            ...conv,
+            lastMessageDate: new Date(),
+            messages: finalUpdatedMessages
+          };
+        }
+        return conv;
+      });
+      
+      setConversations(updatedConversations);
     } finally {
       setIsProcessing(false);
     }

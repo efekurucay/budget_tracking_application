@@ -135,6 +135,10 @@ serve(async (req) => {
 
 6. SAMİMİ TON: Profesyonel ama arkadaşça bir ton kullan. Kullanıcıyı motive et ve olumlu ol.
 
+7. ÖNCEKİ MESAJLARA REFERANS: Yanıtlarında, kullanıcının önceki mesajlarına referans ver. Örneğin: "Daha önce tasarruf hedefleriniz hakkında sormuştunuz..." gibi.
+
+8. SOHBET AKIŞI: Yanıtlarında konuşmayı akıcı tut ve önceki bağlamı unutma.
+
 İşte kullanıcının finansal verileri:
 
 ${userDataContext}`
@@ -145,11 +149,22 @@ ${userDataContext}`
     const CONVERSATION_LIMIT = 10;
     const recentMessages = previousMessages.slice(-CONVERSATION_LIMIT);
     
-    for (const msg of recentMessages) {
-      contents.push({
-        role: msg.role === "user" ? "user" : "model",
-        parts: [{ text: msg.content }]
-      });
+    // Eğer mesaj geçmişi varsa, yanıta dahil et
+    if (recentMessages.length > 0) {
+      // İlk yanıta ekle
+      contents[0].parts[0].text += "\n\n### Konuşma Geçmişi:\n";
+      
+      for (let i = 0; i < recentMessages.length; i++) {
+        const msg = recentMessages[i];
+        // Konuşma geçmişini kullanıcı yönergelerine ekle
+        contents[0].parts[0].text += `\n**${msg.role === 'user' ? 'Kullanıcı' : 'Asistan'}**: ${msg.content.substring(0, 100)}${msg.content.length > 100 ? '...' : ''}\n`;
+        
+        // Ayrıca Gemini'nin konuşma modelini kullanabilmesi için ayrı içerikler olarak da ekle
+        contents.push({
+          role: msg.role === "user" ? "user" : "model",
+          parts: [{ text: msg.content }]
+        });
+      }
     }
     
     // Son kullanıcı mesajını ekle
