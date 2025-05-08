@@ -14,7 +14,34 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
     detectSessionInUrl: true,
     storageKey: 'g15-finance-genius-auth-storage',
-    flowType: 'pkce'
+    flowType: 'pkce',
+    storage: {
+      getItem: (key) => {
+        try {
+          const storedSession = localStorage.getItem(key);
+          return storedSession;
+        } catch (error) {
+          console.error('Supabase getItem error:', error);
+          return null;
+        }
+      },
+      setItem: (key, value) => {
+        try {
+          localStorage.setItem(key, value);
+          return;
+        } catch (error) {
+          console.error('Supabase setItem error:', error);
+        }
+      },
+      removeItem: (key) => {
+        try {
+          localStorage.removeItem(key);
+          return;
+        } catch (error) {
+          console.error('Supabase removeItem error:', error);
+        }
+      }
+    }
   },
   global: {
     fetch: async (url, options = {}) => {

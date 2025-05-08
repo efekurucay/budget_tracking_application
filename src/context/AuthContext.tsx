@@ -40,11 +40,24 @@ export const useAuth = () => {
 
 // Ana AuthProvider bileşeni
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(() => {
+    // İlk render sırasında localStorage'dan kullanıcı bilgisini al (eğer varsa)
+    const savedUser = localStorage.getItem('g15-user-profile');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
   const [isLoading, setIsLoading] = useState(true); // Başlangıçta HER ZAMAN true
   const navigate = useNavigate();
   // Component'in bağlı olup olmadığını takip etmek için useRef
   const isMounted = useRef(true);
+
+  // Kullanıcı değiştiğinde localStorage'a yedekle
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('g15-user-profile', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('g15-user-profile');
+    }
+  }, [user]);
 
   // Kullanıcı profilini Supabase'den çekmek için asenkron fonksiyon
   const fetchUserProfile = async (userId: string, userEmail: string): Promise<UserProfile> => {
@@ -126,32 +139,40 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     console.log(`${logPrefix} Başlıyor, isLoading=true`);
     setIsLoading(true);
 
-    let initialCheckDone = false; // Başlangıç kontrolü ve listener çakışmasını önlemek için
-
-    // 1. Başlangıç Oturum Kontrolü
-    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
-      if (!isMounted.current) return;
-      console.log(`${logPrefix} getSession sonucu geldi.`);
-
-      if (error) {
-        console.error(`${logPrefix} Başlangıç oturumu alma hatası:`, error);
-        setUser(null);
-        setIsLoading(false); // Hata durumunda yüklemeyi bitir
-      } else {
-        console.log(`${logPrefix} Başlangıç oturumu:`, session ? session.user.id : "Yok");
-        // Oturum durumuna göre kullanıcıyı ayarla VE isLoading'i false yap
-        await updateUserState(session?.user || null);
+    // Sayfa yüklendiğinde oturum bilgisini kontrol et
+    const checkAuthOnPageLoad = async () => {
+      try {
+        // Supabase oturum bilgisini al
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error(`${logPrefix} Oturum kontrolü hatası:`, error);
+          setUser(null);
+          setIsLoading(false);
+          return;
+        }
+        
+        if (session?.user) {
+          // Oturum varsa profili getir
+          const profile = await fetchUserProfile(session.user.id, session.user.email || "");
+          if (isMounted.current) {
+            setUser(profile);
+          }
+        } else {
+          // Oturum yoksa kullanıcıyı null yap
+          if (isMounted.current) setUser(null);
+        }
+      } catch (error) {
+        console.error(`${logPrefix} Sayfa yüklenme kontrolü hatası:`, error);
+        if (isMounted.current) setUser(null);
+      } finally {
+        if (isMounted.current) setIsLoading(false);
       }
-      initialCheckDone = true; // Başlangıç kontrolü tamamlandı
-      console.log(`${logPrefix} Başlangıç kontrolü tamamlandı (initialCheckDone=true).`);
+    };
+    
+    checkAuthOnPageLoad();
 
-    }).catch(err => {
-      if (!isMounted.current) return;
-      console.error(`${logPrefix} getSession catch bloğu:`, err);
-      setUser(null);
-      setIsLoading(false); // Beklenmedik hatada yüklemeyi bitir
-      initialCheckDone = true; // Hata olsa bile kontrol bitti
-    });
+    let initialCheckDone = false; // Başlangıç kontrolü ve listener çakışmasını önlemek için
 
     // 2. Auth State Dinleyicisi
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
