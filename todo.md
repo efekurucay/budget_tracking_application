@@ -17,24 +17,26 @@
 - Resolved infinite loading issues by improving Auth state handling
 - Created GroupDetail page for viewing and managing group details
 - Implemented navigation between Groups and GroupDetail pages
+- Added group operations (editing, deleting, leaving)
+- Created group transaction interface with mock functionality
+- Added user invitation and member management capabilities
+- Created `group_transactions` table in Supabase database
+- Implemented proper API integration for group transactions
+- Fixed Supabase RLS policies for transactions
+- Implemented proper error handling for network disconnections
+- Added RPC functions for secure group transaction operations
+- Added option for users to choose transaction categories
+- Allow assigning expenses to specific group members
 
 ## Current Tasks
-- Consider creating additional user interactions in the GroupDetail page
-- Implement proper error handling for network disconnections
-- Optimize data fetching operations for better performance
+- Implement expense settlement functionality for groups
 
 ## Future Improvements
+- Create detailed financial reports for group expenses
+- Add notification system for group activities
 - Fine-tune UI components for better responsive behavior
 - Improve accessibility across all components
-- Add more detailed analytics on the dashboard
-- Allow importing financial data from external sources
-- Consider implementing dark mode
 - Invest in more comprehensive testing
-
-## Known Issues
-- Supabase RLS (Row Level Security) policies for group-related tables need careful setup
-- Some UI components may not be fully responsive on very small screens
-- Authentication state synchronization can be improved further
 
 ## Main Features
 - User authentication (Supabase Auth)
@@ -52,11 +54,9 @@
 - Budget categories (categories)
 - Financial goals (goals)
 - Groups (groups)
+- Group members (group_members)
+- Group transactions (group_transactions)
 
-## To Do
-- Implement proper Supabase RLS policies after core functionality is stable
-- Add proper Row-Level Security to group_members and groups tables
-- Consider implementing request debouncing for API calls to prevent excessive requests
-- Add better error recovery mechanisms for API failures
-- Implement detailed user feedback for error conditions
-- Review global state management approach for further optimization 
+## Known Issues
+- Some UI components may not be fully responsive on very small screens
+- Authentication state synchronization can be improved further

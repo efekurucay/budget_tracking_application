@@ -152,6 +152,57 @@ export type Database = {
         }
         Relationships: []
       }
+      group_transactions: {
+        Row: {
+          id: string
+          group_id: string
+          user_id: string
+          amount: number
+          description: string
+          date: string
+          is_expense: boolean
+          category: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          group_id: string
+          user_id: string
+          amount: number
+          description: string
+          date: string
+          is_expense?: boolean
+          category?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          group_id?: string
+          user_id?: string
+          amount?: number
+          description?: string
+          date?: string
+          is_expense?: boolean
+          category?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_transactions_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -319,12 +370,99 @@ export type Database = {
           },
         ]
       }
+      group_transaction_members: {
+        Row: {
+          id: string
+          transaction_id: string
+          member_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          transaction_id: string
+          member_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          transaction_id?: string
+          member_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_transaction_members_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "group_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_transaction_members_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      add_group_transaction: {
+        Args: {
+          p_group_id: string
+          p_user_id: string
+          p_amount: number
+          p_description: string
+          p_date: string
+          p_is_expense: boolean
+          p_category?: string | null
+          p_member_ids?: string[] | null
+        }
+        Returns: {
+          id: string
+          group_id: string
+          user_id: string
+          amount: number
+          description: string
+          date: string
+          is_expense: boolean
+          category: string | null
+          created_at: string
+        } | null
+      }
+      get_group_transactions: {
+        Args: {
+          group_id_param: string
+        }
+        Returns: {
+          id: string
+          group_id: string
+          user_id: string
+          amount: number
+          description: string
+          date: string
+          is_expense: boolean
+          category: string | null
+          created_at: string
+        }[]
+      }
+      get_transaction_members: {
+        Args: {
+          transaction_id_param: string
+        }
+        Returns: {
+          id: string
+          transaction_id: string
+          member_id: string
+          created_at: string
+          first_name: string | null
+          last_name: string | null
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
