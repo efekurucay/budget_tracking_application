@@ -1,0 +1,105 @@
+Elbette! Aşağıda, orijinal veritabanı şemanıza göre **yapılan tüm değişiklikleri ve iyileştirmeleri tek tek ve net bir şekilde** açıklıyorum. Bu listeyi raporunuzda kullanabilirsiniz:
+
+---
+
+### 🔧 **1. `gender` veri tipi değişti**
+
+* **Önce:** `BOOLEAN COMMENT '0: Female, 1: Male'`
+* **Sonra:** `ENUM('Female', 'Male')`
+* **Neden:** `BOOLEAN` sadece 0/1 değer alır, anlam karmaşası yaratabilir. `ENUM` ile doğrudan açık ve okunabilir hale getirildi.
+
+---
+
+### 🔧 **2. `ON DELETE CASCADE` ve `SET NULL` eklendi**
+
+* **Önce:** Dış anahtarlar sadece `REFERENCES` ile tanımlıydı.
+* **Sonra:** `ON DELETE CASCADE` veya `ON DELETE SET NULL` eklendi.
+* **Neden:** Bağlantılı kayıtlar silindiğinde ilişkili kayıtların da silinmesi (ya da null’a dönmesi) sağlandı, veri bütünlüğü korundu.
+
+---
+
+### 🔧 **3. `currency_code` alanı eklendi**
+
+* **Eklendiği tablolar:** `Budget`, `Income`, `Expense`, `PlannedExpense`
+* **Tip:** `VARCHAR(3)` — Örn: `'USD'`, `'EUR'`
+* **Neden:** Çoklu para birimi desteği sağlamak için eklendi. Finansal sistemlerde kritik bir gerekliliktir.
+
+---
+
+### 🔧 **4. ENUM kullanımında genişletilebilirlik önerildi**
+
+* `ENUM` ile tanımlanan alanlar (örn. `method_type`, `transaction_status`, `goal_status`) yorum satırlarıyla belgelenerek genişletilmeye açık hale getirildi.
+* **Alternatif olarak** ayrı referans tablolarla çözüm de önerildi.
+
+---
+
+### 🔧 **5. `password` alanına güvenlik notu eklendi**
+
+* **Açıklama:** Parolanın `bcrypt` gibi yöntemlerle **hashlenmiş** olarak saklanması gerektiği belirtildi.
+* **Veri tipi:** `VARCHAR(255)` aynı kaldı.
+
+---
+
+### 🔧 **6. `NOT NULL` eksikleri tamamlandı**
+
+* Gerekli alanlara `NOT NULL` eklendi:
+
+  * Örn: `username`, `email`, `budget_name`, `income_amount`, `expense_amount`, `planned_amount` vs.
+* **Neden:** Kritik verilerin boş geçilmesini engellemek için.
+
+---
+
+### 🔧 **7. Varsayılan değerler (`DEFAULT`) eklendi**
+
+* Örneğin:
+
+  * `registration_date DATE DEFAULT CURRENT_DATE`
+  * `goal_current_amount DECIMAL(10,2) DEFAULT 0`
+* **Neden:** Boş bırakıldığında anlamlı varsayılanlar atanması sağlandı.
+
+---
+
+### 🔧 **8. `PlannedExpense.payment_method_id` açıkça NULL olabilir hale getirildi**
+
+* **Neden:** Bazı planlı harcamalarda ödeme yöntemi bilinmeyebilir. Uyumlu hale getirildi.
+
+---
+
+### 🔧 **9. Veri bütünlüğü için ilişki yapısı kontrol edildi**
+
+* İlgili tüm `FOREIGN KEY`'ler yeniden yazılarak referans tutarlılığı sağlandı.
+
+---
+
+### 🔧 **10. Kod yapısı düzenlendi ve okunabilirlik artırıldı**
+
+* Satır hizaları düzeltildi, her alan net ve gruplu olarak tanımlandı.
+* Tablolar arasında anlamlı gruplamalar yapıldı: kullanıcı, bütçe, gelir, gider, rapor vb.
+
+---
+
+Bu değişikliklerle sistem:
+
+* Daha **güvenli**
+* Daha **esnek**
+* Daha **hatalara dayanıklı**
+* Daha **çoklu para birimi ve gerçek dünya kullanımına uygun**
+
+hale gelmiş oldu.
+
+---
+
+İstersen bu listeyi raporun için Word veya PDF formatında da hazırlayabilirim. Yardımcı olmamı ister misin?
+
+
+🔧 Yapılan Geliştirmeler
+Tüm tablolara created_at ve updated_at alanları eklendi.
+
+user_id, email, username, transaction_id gibi alanlara INDEX eklendi.
+
+CHECK kısıtlamaları (örneğin: tutarlar negatif olamaz) eklendi.
+
+Çoklu döviz desteği için Currency tablosu eklendi ve gerekli yerlere currency_code alanı eklendi.
+
+Şifre güvenliği uygulama katmanında hashlenmiş varsayılıyor (açıklama olarak belirtildi).
+

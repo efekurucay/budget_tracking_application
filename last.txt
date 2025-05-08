@@ -1,0 +1,177 @@
+-- CURRENCY TABLE (optional but useful for multi-currency)
+CREATE TABLE Currency (
+  code VARCHAR(3) PRIMARY KEY, -- e.g. 'USD', 'EUR'
+  name VARCHAR(50),
+  symbol VARCHAR(10)
+);
+
+-- USERS
+CREATE TABLE Users (
+  user_id INT PRIMARY KEY AUTO_INCREMENT,
+  first_name VARCHAR(255) NOT NULL,
+  last_name VARCHAR(255) NOT NULL,
+  username VARCHAR(255) UNIQUE NOT NULL,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  phone_number VARCHAR(20),
+  password VARCHAR(255) NOT NULL, -- hashed
+  gender ENUM('Female', 'Male'),
+  date_of_birth DATE,
+  registration_date DATE DEFAULT CURRENT_DATE,
+  profile_picture VARCHAR(255),
+  account_status TINYINT DEFAULT 1 COMMENT '0: Suspended, 1: Active, 2: Inactive',
+  is_deleted BOOLEAN DEFAULT FALSE,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX (username),
+  INDEX (email)
+);
+
+-- EXPENSE CATEGORY
+CREATE TABLE ExpenseCategory (
+  category_id INT PRIMARY KEY AUTO_INCREMENT,
+  category_name VARCHAR(100) UNIQUE NOT NULL,
+  category_type VARCHAR(50) NOT NULL,
+  is_deleted BOOLEAN DEFAULT FALSE,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- BUDGET
+CREATE TABLE Budget (
+  budget_id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  budget_name VARCHAR(255) NOT NULL,
+  budget_amount DECIMAL(10,2) NOT NULL CHECK (budget_amount >= 0),
+  currency_code VARCHAR(3) DEFAULT 'USD',
+  category_id INT NOT NULL,
+  budget_start_date DATE,
+  budget_end_date DATE,
+  budget_status VARCHAR(20) DEFAULT 'Active',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+  FOREIGN KEY (category_id) REFERENCES ExpenseCategory(category_id),
+  FOREIGN KEY (currency_code) REFERENCES Currency(code)
+);
+
+-- INCOME
+CREATE TABLE Income (
+  income_id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  income_source VARCHAR(255),
+  income_amount DECIMAL(10,2) NOT NULL CHECK (income_amount >= 0),
+  currency_code VARCHAR(3) DEFAULT 'USD',
+  income_date DATE NOT NULL,
+  income_description VARCHAR(255),
+  income_recurring BOOLEAN DEFAULT FALSE,
+  income_frequency VARCHAR(50),
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+  FOREIGN KEY (currency_code) REFERENCES Currency(code)
+);
+
+-- PAYMENT METHOD
+CREATE TABLE PaymentMethod (
+  method_id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  method_type ENUM('Credit Card', 'Cash', 'Bank Transfer', 'Other') NOT NULL,
+  card_last4 VARCHAR(4),
+  expiration_date DATE,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
+);
+
+-- EXPENSE
+CREATE TABLE Expense (
+  expense_id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  category_id INT NOT NULL,
+  expense_amount DECIMAL(10,2) NOT NULL CHECK (expense_amount >= 0),
+  currency_code VARCHAR(3) DEFAULT 'USD',
+  expense_date DATE NOT NULL,
+  expense_description VARCHAR(255),
+  expense_recurring BOOLEAN DEFAULT FALSE,
+  expense_frequency VARCHAR(50),
+  payment_method_id INT NOT NULL,
+  transaction_id VARCHAR(100) UNIQUE,
+  transaction_status ENUM('Completed', 'Pending', 'Failed') DEFAULT 'Completed',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+  FOREIGN KEY (category_id) REFERENCES ExpenseCategory(category_id),
+  FOREIGN KEY (payment_method_id) REFERENCES PaymentMethod(method_id),
+  FOREIGN KEY (currency_code) REFERENCES Currency(code),
+  INDEX (user_id),
+  INDEX (transaction_id)
+);
+
+-- GOAL
+CREATE TABLE Goal (
+  goal_id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  goal_name VARCHAR(255) NOT NULL,
+  goal_description VARCHAR(255),
+  goal_target_amount DECIMAL(10,2) NOT NULL CHECK (goal_target_amount >= 0),
+  goal_current_amount DECIMAL(10,2) DEFAULT 0 CHECK (goal_current_amount >= 0),
+  goal_start_date DATE,
+  goal_target_date DATE,
+  goal_status ENUM('In Progress', 'Achieved', 'Abandoned') DEFAULT 'In Progress',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
+);
+
+-- REPORT
+CREATE TABLE Report (
+  report_id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  report_type VARCHAR(100) NOT NULL,
+  report_date DATE NOT NULL,
+  report_period_start DATE,
+  report_period_end DATE,
+  category_spending_percentage DECIMAL(5,2),
+  monthly_saving_rate DECIMAL(5,2),
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
+);
+
+-- REPORT EXPENSE (M:N)
+CREATE TABLE ReportExpense (
+  report_id INT NOT NULL,
+  expense_id INT NOT NULL,
+  PRIMARY KEY (report_id, expense_id),
+  FOREIGN KEY (report_id) REFERENCES Report(report_id) ON DELETE CASCADE,
+  FOREIGN KEY (expense_id) REFERENCES Expense(expense_id) ON DELETE CASCADE
+);
+
+-- PLANNED EXPENSE
+CREATE TABLE PlannedExpense (
+  planned_expense_id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  category_id INT NOT NULL,
+  planned_amount DECIMAL(10,2) NOT NULL CHECK (planned_amount >= 0),
+  currency_code VARCHAR(3) DEFAULT 'USD',
+  planned_date DATE NOT NULL,
+  description VARCHAR(255),
+  frequency VARCHAR(50),
+  payment_method_id INT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+  FOREIGN KEY (category_id) REFERENCES ExpenseCategory(category_id),
+  FOREIGN KEY (payment_method_id) REFERENCES PaymentMethod(method_id),
+  FOREIGN KEY (currency_code) REFERENCES Currency(code)
+);
+
+-- REPORT CATEGORY DETAIL
+CREATE TABLE ReportCategoryDetail (
+  report_id INT NOT NULL,
+  category_id INT NOT NULL,
+  total_amount DECIMAL(10,2) NOT NULL CHECK (total_amount >= 0),
+  PRIMARY KEY (report_id, category_id),
+  FOREIGN KEY (report_id) REFERENCES Report(report_id) ON DELETE CASCADE,
+  FOREIGN KEY (category_id) REFERENCES ExpenseCategory(category_id)
+);
