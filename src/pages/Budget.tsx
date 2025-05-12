@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/ui/sonner";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next"; // Removed TFunction import
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { Progress } from "@/components/ui/progress";
+import { Tables } from "@/integrations/supabase/types"; // Import Tables type helper
+import { format, startOfMonth, endOfMonth, addMonths } from 'date-fns'; // Import date-fns functions
 
 // Types for budget categories
 interface BudgetCategory {
@@ -49,13 +51,24 @@ interface BudgetCategory {
 
 // Types for transactions (simplified for budget usage)
 interface BudgetTransaction {
-  category: string;
+  category: string | null; // Category can be null in transactions table
   amount: number;
   type: string;
 }
 
+// Type for planned expenses (using generated types)
+type PlannedExpense = Tables<'planned_expenses'>;
+
+// Type for AI Budget Suggestion item
+interface AISuggestion {
+  categoryId: string;
+  categoryName?: string; // Name might be added by frontend after fetching from AI
+  suggestedBudget: number;
+  // Potentially other fields from AI like 'reasoning', 'confidenceScore' etc.
+}
+
 // Form validation schema
-const createBudgetSchema = (t: any) => z.object({
+const createBudgetSchema = (t: ReturnType<typeof useTranslation>['t']) => z.object({ // Use inferred type for t
   name: z.string().min(1, t("budget.errors.nameRequired", "Category name is required")),
   budget_amount: z.coerce.number().positive(t("budget.errors.amountPositive", "Budget amount must be positive")),
   color: z.string().optional(),
@@ -64,9 +77,11 @@ const createBudgetSchema = (t: any) => z.object({
 const Budget = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false); // For adding new category
+  const [editDialogOpen, setEditDialogOpen] = useState(false); // For editing existing category
   const [selectedCategory, setSelectedCategory] = useState<BudgetCategory | null>(null);
+  const [aiBudgetPlanDialogOpen, setAiBudgetPlanDialogOpen] = useState(false);
+  const [suggestedBudgetPlan, setSuggestedBudgetPlan] = useState<Array<{ categoryId: string; categoryName: string; currentBudget: number; lastMonthSpent: number; suggestedBudget: number }> | null>(null);
   const queryClient = useQueryClient();
 
   // Create the schema with translations
@@ -125,6 +140,33 @@ const Budget = () => {
     },
     enabled: !!user,
   });
+
+  // Fetch planned expenses for the next month
+  const { data: plannedExpenses, isLoading: isLoadingPlannedExpenses } = useQuery({
+    queryKey: ["planned-expenses-next-month"],
+    queryFn: async () => {
+      const today = new Date();
+      const nextMonthDate = addMonths(today, 1);
+      const startDate = format(startOfMonth(nextMonthDate), 'yyyy-MM-dd');
+      const endDate = format(endOfMonth(nextMonthDate), 'yyyy-MM-dd');
+
+      const { data, error } = await supabase
+        .from("planned_expenses")
+        .select("*")
+        .eq('status', 'planned') // Only fetch planned expenses
+        .gte('due_date', startDate)
+        .lte('due_date', endDate)
+        .order("due_date");
+
+      if (error) {
+        toast.error(t("budget.errors.loadPlannedExpenses", "Error loading planned expenses"));
+        throw error;
+      }
+      return data as PlannedExpense[];
+    },
+    enabled: !!user, // Only run query if user is logged in
+  });
+
 
   // Add budget category mutation
   const addBudgetCategoryMutation = useMutation({
@@ -194,6 +236,96 @@ const Budget = () => {
     },
   });
 
+  // Mutation to call the AI budget planning function
+  const planBudgetWithAIMutation = useMutation({
+    mutationFn: async () => {
+      // 1. Fetch last month's expenses
+      const today = new Date();
+      const lastMonthStartDate = format(startOfMonth(addMonths(today, -1)), 'yyyy-MM-dd');
+      const lastMonthEndDate = format(endOfMonth(addMonths(today, -1)), 'yyyy-MM-dd');
+
+      const { data: lastMonthTransactions, error: transactionsError } = await supabase
+        .from('transactions')
+        .select('category, amount')
+        .eq('type', 'expense')
+        .gte('date', lastMonthStartDate)
+        .lte('date', lastMonthEndDate);
+
+      if (transactionsError) {
+        throw new Error(t("budget.errors.loadLastMonthExpenses", "Failed to load last month's expenses for AI planning."));
+      }
+
+      // Aggregate expenses by category name
+      const expensesByCategoryName: Record<string, number> = {};
+      lastMonthTransactions?.forEach(tx => {
+        if (tx.category) {
+          expensesByCategoryName[tx.category] = (expensesByCategoryName[tx.category] || 0) + tx.amount;
+        }
+      });
+      
+      // Prepare data for AI function: map category names to IDs and include current budget
+      const categoriesForAI = categories?.map(cat => ({
+        id: cat.id,
+        name: cat.name,
+        currentBudget: cat.budget_amount,
+        lastMonthSpent: expensesByCategoryName[cat.name] || 0,
+      })) || [];
+
+
+      // 2. Call the Supabase Edge Function
+      const { data: aiResponse, error: aiError } = await supabase.functions.invoke('ai-finance-assistant', {
+        body: {
+          action: 'suggest_next_month_budget',
+          payload: {
+            currentCategories: categoriesForAI,
+            // We could add more context here, like user goals, income, etc. in the future
+          },
+        },
+      });
+
+      if (aiError) {
+        console.error("AI Function Error:", aiError);
+        throw new Error(t("budget.errors.aiPlanningFailed", "AI budget planning failed: ") + aiError.message);
+      }
+      
+      // Assuming the AI returns an array of suggestions like:
+      // { categoryId: string, suggestedBudget: number } -> AI might only return these
+      // We will enrich it with categoryName, currentBudget, lastMonthSpent on the frontend
+      const suggestions = aiResponse?.suggestions?.map((suggestion: AISuggestion) => {
+        const categoryInfo = categoriesForAI.find(c => c.id === suggestion.categoryId);
+        return {
+          categoryId: suggestion.categoryId, // Ensure categoryId is correctly passed
+          suggestedBudget: suggestion.suggestedBudget, // Ensure suggestedBudget is correctly passed
+          categoryName: categoryInfo?.name || 'Unknown Category',
+          currentBudget: categoryInfo?.currentBudget || 0,
+          lastMonthSpent: categoryInfo?.lastMonthSpent || 0,
+        };
+      }) || [];
+
+      return suggestions;
+    },
+    onSuccess: (data) => {
+      if (data && data.length > 0) {
+        setSuggestedBudgetPlan(data);
+        setAiBudgetPlanDialogOpen(true);
+        toast.success(t("budget.aiSuggestionsReady", "AI budget suggestions are ready!"));
+      } else {
+        toast.info(t("budget.noAiSuggestions", "AI couldn't generate suggestions, or no categories to plan for."));
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const handlePlanWithAI = () => {
+    if (!categories || categories.length === 0) {
+      toast.info(t("budget.noCategoriesToPlan", "Please add budget categories before planning with AI."));
+      return;
+    }
+    planBudgetWithAIMutation.mutate();
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('tr-TR', {
       style: 'currency',
@@ -252,6 +384,7 @@ const Budget = () => {
   const totalBudget = categories?.reduce((sum, category) => sum + category.budget_amount, 0) || 0;
   const spentAmounts = calculateSpentAmounts();
   const totalSpent = Object.values(spentAmounts).reduce((sum, amount) => sum + amount, 0);
+  const totalPlannedNextMonth = plannedExpenses?.reduce((sum, expense) => sum + expense.amount, 0) || 0;
 
   const openEditDialog = (category: BudgetCategory) => {
     setSelectedCategory(category);
@@ -288,87 +421,188 @@ const Budget = () => {
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold">{t("budget.pageTitle", "Budget Management")}</h1>
           
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                {t("budget.addCategory", "Add Budget Category")}
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
+          <div className="flex space-x-2">
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  {t("budget.addCategory", "Add Budget Category")}
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{t("budget.addCategory", "Add Budget Category")}</DialogTitle>
+                  <DialogDescription>
+                    {t("budget.addCategoryDescription", "Create a new budget category to track your expenses.")}
+                  </DialogDescription>
+                </DialogHeader>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(handleAddSubmit)} className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("budget.categoryName", "Category Name")}</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="budget_amount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("budget.monthlyBudget", "Monthly Budget (₺)")}</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="color"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("budget.categoryColor", "Category Color")}</FormLabel>
+                          <FormControl>
+                            <div className="flex space-x-2">
+                              {categoryColors.map((color) => (
+                                <div
+                                  key={color}
+                                  className={`h-8 w-8 rounded-full cursor-pointer ${
+                                    field.value === color ? "ring-2 ring-offset-2 ring-g15-primary" : ""
+                                  }`}
+                                  style={{ backgroundColor: color }}
+                                  onClick={() => form.setValue("color", color)}
+                                />
+                              ))}
+                            </div>
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <DialogFooter>
+                      <Button type="submit" disabled={addBudgetCategoryMutation.isPending}>
+                        {addBudgetCategoryMutation.isPending ? t("common.loading", "Saving...") : t("common.save", "Save")}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
+            <Button 
+              variant="outline" 
+              onClick={handlePlanWithAI}
+              disabled={planBudgetWithAIMutation.isPending || isLoadingCategories}
+            >
+              {planBudgetWithAIMutation.isPending ? (
+                <>{t("common.loading", "Planning...")}</>
+              ) : (
+                <>
+                  <PieChart className="mr-2 h-4 w-4" />
+                  {t("budget.planWithAI", "Plan Next Month with AI")}
+                </>
+              )}
+            </Button>
+          </div>
+          
+          {/* Dialog for AI Budget Plan Suggestions */}
+          <Dialog open={aiBudgetPlanDialogOpen} onOpenChange={setAiBudgetPlanDialogOpen}>
+            <DialogContent className="max-w-2xl">
               <DialogHeader>
-                <DialogTitle>{t("budget.addCategory", "Add Budget Category")}</DialogTitle>
+                <DialogTitle>{t("budget.aiSuggestionsTitle", "AI Budget Suggestions for Next Month")}</DialogTitle>
                 <DialogDescription>
-                  {t("budget.addCategoryDescription", "Create a new budget category to track your expenses.")}
+                  {t("budget.aiSuggestionsDesc", "Review the suggestions and apply them to your budget categories. You can adjust the amounts before applying.")}
                 </DialogDescription>
               </DialogHeader>
-              
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleAddSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("budget.categoryName", "Category Name")}</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="budget_amount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("budget.monthlyBudget", "Monthly Budget (₺)")}</FormLabel>
-                        <FormControl>
-                          <Input type="number" step="0.01" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="color"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("budget.categoryColor", "Category Color")}</FormLabel>
-                        <FormControl>
-                          <div className="flex space-x-2">
-                            {categoryColors.map((color) => (
-                              <div
-                                key={color}
-                                className={`h-8 w-8 rounded-full cursor-pointer ${
-                                  field.value === color ? "ring-2 ring-offset-2 ring-g15-primary" : ""
-                                }`}
-                                style={{ backgroundColor: color }}
-                                onClick={() => form.setValue("color", color)}
-                              />
-                            ))}
-                          </div>
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <DialogFooter>
-                    <Button type="submit" disabled={addBudgetCategoryMutation.isPending}>
-                      {addBudgetCategoryMutation.isPending ? t("common.loading", "Saving...") : t("common.save", "Save")}
+              <div className="max-h-[60vh] overflow-y-auto space-y-4 p-1">
+                {suggestedBudgetPlan?.map((item, index) => (
+                  <div key={item.categoryId} className="grid grid-cols-4 items-center gap-2 border-b pb-2">
+                    <span className="col-span-1 font-medium">{item.categoryName}</span>
+                    <div className="col-span-1 text-sm">
+                      <p>{t("budget.current", "Current")}: {formatCurrency(item.currentBudget)}</p>
+                      <p>{t("budget.lastMonthSpent", "Last Month")}: {formatCurrency(item.lastMonthSpent)}</p>
+                    </div>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      className="col-span-1"
+                      value={item.suggestedBudget}
+                      onChange={(e) => {
+                        const newAmount = parseFloat(e.target.value);
+                        setSuggestedBudgetPlan(prev => 
+                          prev!.map(p => p.categoryId === item.categoryId ? {...p, suggestedBudget: isNaN(newAmount) ? 0 : newAmount} : p)
+                        );
+                      }}
+                    />
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="col-span-1"
+                      onClick={() => { // Apply individual suggestion
+                        updateBudgetCategoryMutation.mutate({
+                          id: item.categoryId,
+                          name: item.categoryName, // Name shouldn't change here, but schema expects it
+                          budget_amount: item.suggestedBudget,
+                          // color: categories?.find(c=>c.id === item.categoryId)?.color // Keep existing color
+                        }, {
+                          onSuccess: () => {
+                            toast.success(`${item.categoryName} budget updated.`);
+                            // Optionally remove from suggested list or mark as applied
+                            setSuggestedBudgetPlan(prev => prev!.filter(p => p.categoryId !== item.categoryId));
+                          }
+                        });
+                      }}
+                      disabled={updateBudgetCategoryMutation.isPending}
+                    >
+                      {t("budget.applySuggestion", "Apply")}
                     </Button>
-                  </DialogFooter>
-                </form>
-              </Form>
+                  </div>
+                ))}
+              </div>
+              <DialogFooter>
+                <Button 
+                  variant="outline"
+                  onClick={() => setAiBudgetPlanDialogOpen(false)}
+                >
+                  {t("common.cancel", "Cancel")}
+                </Button>
+                <Button 
+                  onClick={() => { // Apply all remaining suggestions
+                    const updates = suggestedBudgetPlan?.map(item => 
+                      updateBudgetCategoryMutation.mutateAsync({
+                        id: item.categoryId,
+                        name: item.categoryName,
+                        budget_amount: item.suggestedBudget,
+                      })
+                    );
+                    if (updates) {
+                      Promise.all(updates).then(() => {
+                        toast.success(t("budget.allSuggestionsApplied", "All suggestions applied successfully!"));
+                        setAiBudgetPlanDialogOpen(false);
+                        setSuggestedBudgetPlan(null);
+                      }).catch(error => {
+                        toast.error(t("budget.errorApplyingAll", "Error applying some suggestions: ") + error.message);
+                      });
+                    }
+                  }}
+                  disabled={!suggestedBudgetPlan || suggestedBudgetPlan.length === 0 || updateBudgetCategoryMutation.isPending}
+                >
+                  {t("budget.applyAllSuggestions", "Apply All Remaining")}
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
-          
-          <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+
+          <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}> {/* Keep edit dialog separate */}
             <DialogContent>
+            {/* ... existing edit category dialog content ... */}
               <DialogHeader>
                 <DialogTitle>{t("common.edit", "Edit")} {selectedCategory?.name}</DialogTitle>
               </DialogHeader>
@@ -543,11 +777,11 @@ const Budget = () => {
                       <Progress
                         value={percentage}
                         className={`h-2 ${
-                          percentage >= 90 ? "bg-red-200" : percentage >= 75 ? "bg-amber-200" : "bg-gray-200"
+                          percentage >= 90 ? "bg-red-200 [&>*]:bg-red-500" : 
+                          percentage >= 75 ? "bg-amber-200 [&>*]:bg-amber-500" : 
+                          "bg-gray-200 [&>*]:bg-primary" // Default color using primary
                         }`}
-                        indicatorClassName={
-                          percentage >= 90 ? "bg-red-500" : percentage >= 75 ? "bg-amber-500" : ""
-                        }
+                        // Removed indicatorClassName prop
                       />
                       
                       <div className="text-xs text-right mt-1">
@@ -561,6 +795,56 @@ const Budget = () => {
           </CardContent>
         </Card>
         
+        {/* Planned Expenses for Next Month Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("budget.plannedExpensesNextMonth", "Planned Expenses for Next Month")}</CardTitle>
+            <CardDescription>
+              {t("budget.plannedExpensesNextMonthDesc", "These are your scheduled expenses for the upcoming month.")}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoadingPlannedExpenses ? (
+              <div className="text-center py-4">{t("common.loading", "Loading planned expenses...")}</div>
+            ) : !plannedExpenses?.length ? (
+              <div className="text-center py-4 text-gray-500">
+                <AlertCircle className="h-10 w-10 mx-auto mb-2" />
+                <p>{t("budget.noPlannedExpenses", "No planned expenses found for next month.")}</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {plannedExpenses.map((expense) => (
+                  <div key={expense.id} className="border rounded-lg p-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-medium">{expense.description}</h4>
+                        <p className="text-sm text-gray-500">
+                          {t("budget.dueDate", "Due")}: {format(new Date(expense.due_date), 'dd/MM/yyyy')}
+                          {expense.category_id && categories?.find(c => c.id === expense.category_id) && (
+                            <span className="ml-2 text-xs px-1.5 py-0.5 rounded-full" style={{backgroundColor: categories.find(c => c.id === expense.category_id)?.color || '#ccc', color: '#fff'}}>
+                              {categories.find(c => c.id === expense.category_id)?.name}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold">{formatCurrency(expense.amount)}</p>
+                        {expense.is_recurring && (
+                          <p className="text-xs text-blue-500">{t("budget.recurring", "Recurring")} ({expense.recurring_interval})</p>
+                        )}
+                      </div>
+                    </div>
+                    {expense.notes && <p className="text-xs text-gray-400 mt-1">{expense.notes}</p>}
+                  </div>
+                ))}
+                <div className="text-right font-bold mt-4">
+                  {t("budget.totalPlanned", "Total Planned")}: {formatCurrency(totalPlannedNextMonth)}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Budget vs Spent Bar Chart */}
         <Card>
           <CardHeader>

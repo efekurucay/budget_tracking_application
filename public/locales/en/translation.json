@@ -52,7 +52,33 @@
       "categoryUpdated": "Budget category updated successfully",
       "categoryDeleted": "Budget category deleted successfully"
     },
-    "addCategoryDescription": "Create a new budget category to track your expenses."
+    "addCategoryDescription": "Create a new budget category to track your expenses.",
+    "planWithAI": "Plan Next Month with AI",
+    "aiSuggestionsTitle": "AI Budget Suggestions for Next Month",
+    "aiSuggestionsDesc": "Review the suggestions and apply them to your budget categories. You can adjust the amounts before applying.",
+    "applyAllSuggestions": "Apply All Remaining",
+    "categories": "Budget Categories",
+    "plannedExpensesNextMonth": "Planned Expenses for Next Month",
+    "plannedExpensesNextMonthDesc": "These are your scheduled expenses for the upcoming month.",
+    "comparisonChart": "Budget vs Spending by Category",
+    "noPlannedExpenses": "No planned expenses found for next month.",
+    "noCategories": "No budget categories found. Create your first category.",
+    "aiSuggestionsReady": "AI budget suggestions are ready!",
+    "noAiSuggestions": "AI couldn't generate suggestions, or no categories to plan for.",
+    "noCategoriesToPlan": "Please add budget categories before planning with AI.",
+    "current": "Current",
+    "lastMonthSpent": "Last Month",
+    "applySuggestion": "Apply",
+    "totalPlanned": "Total Planned",
+    "dueDate": "Due",
+    "recurring": "Recurring",
+    "errors": {
+      "nameRequired": "Category name is required",
+      "amountPositive": "Budget amount must be positive",
+      "loadPlannedExpenses": "Error loading planned expenses",
+      "loadLastMonthExpenses": "Failed to load last month's expenses for AI planning.",
+      "aiPlanningFailed": "AI budget planning failed: "
+    }
   },
   "goals": {
     "pageTitle": "Financial Goals",
@@ -331,4 +357,4 @@
     "november": "Nov",
     "december": "Dec"
   }
-} 
+}
