@@ -177,35 +177,9 @@ const SignUp = () => {
           {isSubmitting ? "Creating Account..." : "Create Account"}
         </Button>
         
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-300"></div>
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-gray-500">or continue with</span>
-          </div>
-        </div>
+   
         
-        <div className="grid grid-cols-2 gap-4">
-          <Button 
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={() => toast.info("Google signup coming soon!")}
-            disabled={isSubmitting}
-          >
-            Google
-          </Button>
-          <Button 
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={() => toast.info("Apple signup coming soon!")}
-            disabled={isSubmitting}
-          >
-            Apple
-          </Button>
-        </div>
+ 
       </form>
     </AuthLayout>
   );
