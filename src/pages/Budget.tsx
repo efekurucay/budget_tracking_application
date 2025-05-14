@@ -143,25 +143,33 @@ const Budget = () => {
 
   // Fetch planned expenses for the next month
   const { data: plannedExpenses, isLoading: isLoadingPlannedExpenses } = useQuery({
-    queryKey: ["planned-expenses-next-month"],
+    queryKey: ["planned-expenses-next-month", user?.id], // Add user.id to queryKey to refetch if user changes
     queryFn: async () => {
+      if (!user) return []; // Kullanıcı yoksa boş dizi döndür
+
       const today = new Date();
       const nextMonthDate = addMonths(today, 1);
       const startDate = format(startOfMonth(nextMonthDate), 'yyyy-MM-dd');
       const endDate = format(endOfMonth(nextMonthDate), 'yyyy-MM-dd');
 
+      console.log("[BudgetPage] Fetching planned expenses for period:", startDate, "to", endDate);
+      console.log("[BudgetPage] User ID for query:", user.id);
+
       const { data, error } = await supabase
         .from("planned_expenses")
         .select("*")
-        .eq('status', 'planned') // Only fetch planned expenses
+        .eq('user_id', user.id) // Explicitly filter by user_id, RLS should also handle this
+        .eq('status', 'planned')
         .gte('due_date', startDate)
         .lte('due_date', endDate)
         .order("due_date");
 
       if (error) {
         toast.error(t("budget.errors.loadPlannedExpenses", "Error loading planned expenses"));
+        console.error("[BudgetPage] Error loading planned expenses:", error.message, error.details);
         throw error;
       }
+      console.log("[BudgetPage] Fetched planned expenses:", data);
       return data as PlannedExpense[];
     },
     enabled: !!user, // Only run query if user is logged in
